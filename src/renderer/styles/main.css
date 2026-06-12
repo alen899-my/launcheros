@@ -1,0 +1,82 @@
+#app {
+  display: flex;
+  height: calc(100vh - var(--titlebar-h));
+  overflow: hidden;
+}
+
+#main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--background);
+}
+
+#topbar {
+  padding: 14px 20px 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+#topbar h1 {
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--foreground);
+  flex: 1;
+}
+#topbar h1 span { color: var(--muted-foreground); font-weight: 400; }
+.filter-tabs { display: flex; gap: 4px; background: var(--secondary); padding: 2px; border-radius: var(--radius-sm); }
+.filter-tab {
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted-foreground);
+  transition: all 0.15s;
+}
+.filter-tab:hover { color: var(--foreground); }
+.filter-tab.active {
+  background: var(--card);
+  color: var(--foreground);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ─── Content Area ───────────────────────────────── */
+#content-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+#content-area > .view-panel {
+  position: absolute;
+  inset: 0;
+  display: none;
+  flex-direction: column;
+  overflow: hidden;
+}
+#content-area > .view-panel.active { display: flex; }
+
+#cards-area {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+#empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  gap: 12px;
+  color: var(--muted-foreground);
+  flex: 1;
+}
+#empty-state svg { opacity: 0.25; }
+#empty-state p { font-size: 15px; font-weight: 500; color: var(--foreground); }
+#empty-state small { font-size: 12px; }

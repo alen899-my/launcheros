@@ -1,0 +1,61 @@
+{
+  "name": "devlaunch",
+  "version": "1.0.0",
+  "description": "Project launcher & terminal manager for developers",
+  "main": "src/main/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "build:linux": "electron-builder --linux",
+    "build:win": "electron-builder --win",
+    "build:all": "electron-builder --linux --win"
+  },
+  "build": {
+    "appId": "com.devlaunch.app",
+    "productName": "DevLaunch",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/**/*",
+      "assets/**/*",
+      "package.json"
+    ],
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Development",
+      "icon": "assets/icon.png"
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  },
+  "keywords": [
+    "electron",
+    "developer",
+    "launcher",
+    "terminal"
+  ],
+  "author": "DevLaunch",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^28.0.0",
+    "electron-builder": "^24.0.0"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "node-pty": "^0.10.1",
+    "pg": "^8.21.0"
+  }
+}
