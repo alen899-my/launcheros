@@ -27,6 +27,8 @@ export function updateStats() {
   document.getElementById('stat-total').textContent = projects.length
   document.getElementById('stat-running').textContent = running
   document.getElementById('stat-stopped').textContent = projects.length - running
+  const btn = document.getElementById('stop-all-btn')
+  if (btn) btn.classList.toggle('visible', running > 0)
 }
 
 function esc(str) {

@@ -345,6 +345,26 @@ ipcMain.on('project:stop', (event, { projectId }) => {
   }
 });
 
+// ─── IPC: Stop All ─────────────────────────────────────────────────────────────
+ipcMain.handle('project:stopAll', () => {
+  for (const [projectId, { pid }] of runningProcesses) {
+    if (process.platform === 'win32') {
+      try {
+        require('child_process').execSync(`taskkill /pid ${pid} /f /t`, { timeout: 3000 });
+      } catch (e) {}
+    } else {
+      killProcessGroup(pid);
+    }
+    runningProcesses.delete(projectId);
+    // Notify each project via its existing window reference
+    if (mainWindow) {
+      mainWindow.webContents.send('project:status', { projectId, status: 'stopped' });
+      mainWindow.webContents.send('terminal:data', { projectId, data: '\r\n\x1b[33m⚡ Stopped by user (batch)\x1b[0m\r\n' });
+    }
+  }
+  return true;
+});
+
 // ─── IPC: Terminal Input ──────────────────────────────────────────────────────
 ipcMain.on('terminal:input', (_e, { projectId, data }) => {
   const entry = runningProcesses.get(projectId);
