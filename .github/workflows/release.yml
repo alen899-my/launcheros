@@ -19,13 +19,10 @@ jobs:
           node-version: 22
 
       - name: Install dependencies
-        run: npm install
-
-      - name: Rebuild native modules
-        run: npx @electron/rebuild -f -w node-pty
+        run: npm install --ignore-scripts
 
       - name: Build Windows installer
-        run: npx electron-builder --win --x64
+        run: npx electron-builder --win --x64 --publish=never
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -49,11 +46,8 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Rebuild native modules
-        run: npx @electron/rebuild -f -w node-pty
-
       - name: Build Linux packages
-        run: npx electron-builder --linux --x64
+        run: npx electron-builder --linux --x64 --publish=never
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
