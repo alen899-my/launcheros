@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveProjects: (projects) => ipcRenderer.invoke('projects:save', projects),
   selectFolder: () => ipcRenderer.invoke('dialog:selectFolder'),
   openFolder: (p) => ipcRenderer.invoke('shell:openFolder', p),
+  openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url),
 
   // Groups
   loadGroups: () => ipcRenderer.invoke('groups:load'),
@@ -27,9 +28,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onStatusChange: (cb) => ipcRenderer.on('project:status', (_e, v) => cb(v)),
   removeAllListeners: (ch) => ipcRenderer.removeAllListeners(ch),
 
+  // Stop all running processes
+  stopAll: () => ipcRenderer.invoke('project:stopAll'),
+
   // Port conflict detection
   getUsedPorts: () => ipcRenderer.invoke('project:getUsedPorts'),
   killPort: (port) => ipcRenderer.invoke('project:killPort', port),
+
+  // Shell sessions
+  shellSpawn: (opts) => ipcRenderer.send('shell:spawn', opts),
+  shellInput: (opts) => ipcRenderer.send('shell:input', opts),
+  shellKill: (projectId) => ipcRenderer.send('shell:kill', projectId),
+  shellResize: (opts) => ipcRenderer.send('shell:resize', opts),
+  onShellData: (cb) => ipcRenderer.on('shell:data', (_e, v) => cb(v)),
 
   // Monitoring
   getSystemStats: () => ipcRenderer.invoke('monitor:getSystemStats'),

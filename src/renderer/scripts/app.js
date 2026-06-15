@@ -1,11 +1,14 @@
 import { setProjects, setGroups, setStatuses, setTerminalBuffers, setSearchQuery, setSelectedFilter, statuses, terminalBuffers, activeTermTab, groups } from './state.js'
 import { renderSidebar, updateStats } from './sidebar.js'
 import { renderCards, stopProject, doRunProject } from './cards.js'
-import { appendTermOutput, updateTermTabStatus } from './terminal.js'
+import { appendTermOutput, appendConsoleOutput, clearConsoleBuffer, updateTermTabStatus, ensureTerminalElements, toggleTerminalPanel, switchTermTab, extractConsoleData } from './terminal.js'
 import { openModal, closeModal, saveProject, renderGroupSelect } from './modal.js'
 import { openGroupsModal, closeGroupsModal, addGroup, saveGroups } from './groups.js'
 import { toast } from './toast.js'
 import { startMonitoring, stopMonitoring } from './monitor.js'
+import { startConsoleView, stopConsoleView } from './console.js'
+import { startShellView, stopShellView, handleShellData } from './shell.js'
+import { parseRequestData, tickMetrics, cleanupMetrics, clearProjectMetrics } from './requestMetrics.js'
 
 let currentView = 'projects'
 
@@ -24,24 +27,55 @@ async function init() {
   buildUI()
   setupListeners()
   setupIPCListeners()
+  setInterval(() => {
+    const runningIds = Object.entries(statuses).filter(([, s]) => s === 'running').map(([id]) => id)
+    tickMetrics(runningIds)
+  }, 2000)
 }
 
 function setupIPCListeners() {
   window.electronAPI.onTerminalData(({ projectId, data }) => {
     if (!terminalBuffers[projectId]) terminalBuffers[projectId] = ''
-    terminalBuffers[projectId] += data
-    if (activeTermTab === projectId) {
-      appendTermOutput(projectId, data)
+    parseRequestData(projectId, data)
+
+    const { clean, entries } = extractConsoleData(data)
+    terminalBuffers[projectId] += clean
+    for (const entry of entries) {
+      appendConsoleOutput(projectId, entry.level, entry.msg)
+    }
+
+    let output = document.getElementById(`term-output-${projectId}`)
+    if (!output) {
+      ensureTerminalElements(projectId)
+      output = document.getElementById(`term-output-${projectId}`)
+
+      const panel = document.getElementById('terminal-panel')
+      if (panel && panel.classList.contains('collapsed')) {
+        panel.classList.remove('collapsed')
+        const svg = document.querySelector('#term-toggle-btn svg')
+        if (svg) svg.style.transform = 'rotate(180deg)'
+      }
+      switchTermTab(projectId)
+    }
+    if (output) {
+      appendTermOutput(projectId, clean)
     }
     updateTermTabStatus(projectId)
+  })
+
+  window.electronAPI.onShellData(({ projectId, data }) => {
+    handleShellData(projectId, data)
   })
 
   window.electronAPI.onStatusChange(({ projectId, status, message }) => {
     statuses[projectId] = status
     updateProjectStatus(projectId, status)
     if (status === 'running') toast('▶ Started', 'success')
-    if (status === 'stopped') toast('◼ Stopped')
-    if (status === 'error') toast('Failed', 'error')
+    if (status === 'stopped' || status === 'error') {
+      toast(status === 'stopped' ? '◼ Stopped' : 'Failed', 'error')
+      clearProjectMetrics(projectId)
+      clearConsoleBuffer(projectId)
+    }
   })
 }
 
@@ -61,16 +95,28 @@ function updateProjectStatus(id, status) {
 function switchView(view) {
   currentView = view
   document.querySelectorAll('.view-btn').forEach(b => b.classList.toggle('active', b.dataset.view === view))
-  document.querySelectorAll('#content-area > .view-panel').forEach(p => p.classList.toggle('active', p.id === view || (p.id === 'cards-area' && view === 'projects') || (p.id === 'monitor-view' && view === 'monitor')))
+  document.querySelectorAll('#content-area > .view-panel').forEach(p => p.classList.toggle('active', p.id === view || (p.id === 'cards-area' && view === 'projects') || (p.id === 'monitor-view' && view === 'monitor') || (p.id === 'console-view' && view === 'console') || (p.id === 'shell-view' && view === 'shell')))
 
-  document.getElementById('view-title').textContent = view === 'projects' ? 'All Projects' : 'Monitor'
+  document.getElementById('view-title').textContent = view === 'projects' ? 'All Projects' : view === 'monitor' ? 'Monitor' : view === 'console' ? 'Console' : 'Shell'
   document.querySelector('.filter-tabs').style.display = view === 'projects' ? 'flex' : 'none'
   document.getElementById('search-wrap').style.display = view === 'projects' ? '' : 'none'
 
   if (view === 'monitor') {
     startMonitoring()
+    stopConsoleView()
+    stopShellView()
+  } else if (view === 'console') {
+    startConsoleView()
+    stopMonitoring()
+    stopShellView()
+  } else if (view === 'shell') {
+    startShellView()
+    stopMonitoring()
+    stopConsoleView()
   } else {
     stopMonitoring()
+    stopConsoleView()
+    stopShellView()
   }
 }
 
@@ -124,12 +170,16 @@ function setupListeners() {
     })
   })
 
-  document.getElementById('term-toggle-btn').addEventListener('click', () => {
-    const panel = document.getElementById('terminal-panel')
-    const btn = document.getElementById('term-toggle-btn')
-    panel.classList.toggle('collapsed')
-    btn.textContent = panel.classList.contains('collapsed') ? '▲ Terminal' : '▼ Terminal'
+  document.getElementById('stop-all-btn').addEventListener('click', async () => {
+    const btn = document.getElementById('stop-all-btn')
+    btn.textContent = '■ Stopping...'
+    btn.disabled = true
+    await window.electronAPI.stopAll()
+    btn.textContent = '■ Stop All'
+    btn.disabled = false
   })
+
+  document.getElementById('term-toggle-btn').addEventListener('click', toggleTerminalPanel)
 
   document.getElementById('term-clear-btn').addEventListener('click', () => {
     if (activeTermTab) {

@@ -1,6 +1,7 @@
 import { projects, groups, statuses, terminalBuffers, activeTermTab, selectedFilter, searchQuery, setActiveTermTab } from './state.js'
 import { renderSidebar, updateStats } from './sidebar.js'
 import { toast } from './toast.js'
+import { openTerminal } from './terminal.js'
 
 export function renderCards() {
   const area = document.getElementById('cards-area')
@@ -31,6 +32,7 @@ export function renderCards() {
 
 const playSvg = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21"/></svg>'
 const stopSvg = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>'
+const restartSvg = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>'
 const termSvg = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>'
 const editSvg = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>'
 const delSvg = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>'
@@ -68,25 +70,14 @@ function createRow(p) {
     <div class="td td-actions">
       ${!isRunning
         ? `<button class="btn-action-icon btn-play" data-action="run" title="Run">${playSvg}</button>`
-        : `<button class="btn-action-icon btn-stop-icon" data-action="stop" title="Stop">${stopSvg}</button>`
+        : `<button class="btn-action-icon btn-stop-icon" data-action="stop" title="Stop">${stopSvg}</button>
+           <button class="btn-action-icon btn-restart" data-action="restart" title="Restart">${restartSvg}</button>`
       }
       <button class="btn-action-icon btn-term ${activeTermTab === p.id ? 'active' : ''}" data-action="terminal" title="Terminal">${termSvg}</button>
       <button class="btn-action-icon" data-action="edit" title="Edit">${editSvg}</button>
       <button class="btn-action-icon btn-del" data-action="delete" title="Delete">${delSvg}</button>
     </div>
   `
-
-  row.querySelectorAll('[data-action]').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation()
-      const action = btn.dataset.action
-      if (action === 'run') runProject(p.id)
-      else if (action === 'stop') stopProject(p.id)
-      else if (action === 'terminal') openTerminal(p.id)
-      else if (action === 'edit') editProject(p.id)
-      else if (action === 'delete') deleteProject(p.id)
-    })
-  })
 
   const pathEl = row.querySelector('.td-path')
   if (pathEl) {
@@ -98,6 +89,29 @@ function createRow(p) {
   return row
 }
 
+function handleTableClick(e) {
+  const btn = e.target.closest('[data-action]')
+  if (!btn) return
+  e.stopPropagation()
+  const row = btn.closest('.table-row')
+  if (!row) return
+  const id = row.dataset.id
+  const action = btn.dataset.action
+  if (action === 'run') runProject(id)
+  else if (action === 'stop') stopProject(id)
+  else if (action === 'restart') restartProject(id)
+  else if (action === 'terminal') openTerminal(id)
+  else if (action === 'edit') editProject(id)
+  else if (action === 'delete') deleteProject(id)
+}
+
+if (typeof cardsInit === 'undefined') {
+  window.cardsInit = true
+  document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('table-body')?.addEventListener('click', handleTableClick)
+  })
+}
+
 export function selectProject(id) {
   document.querySelectorAll('.sidebar-item').forEach(el => {
     el.classList.toggle('active', el.dataset.id === id)
@@ -106,14 +120,19 @@ export function selectProject(id) {
   if (row) row.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
 }
 
-function detectPortConflict(id, port) {
-  const p = projects.find(x => x.id === id)
-  if (!p || !port) return null
+function findConflictingProjects(id, port) {
   port = String(port).trim()
-  if (!port) return null
-  return projects.filter(x =>
-    x.id !== id && statuses[x.id] === 'running' && x.port && String(x.port).trim() === port
-  )
+  if (!port) return []
+  return projects.filter(x => {
+    if (x.id === id) return false
+    if (statuses[x.id] !== 'running') return false
+    // Check explicit port field
+    if (x.port && String(x.port).trim() === port) return true
+    // Check inferred port from command
+    const inferred = inferPort(x)
+    if (inferred && String(inferred).trim() === port) return true
+    return false
+  })
 }
 
 let pendingRunId = null
@@ -170,9 +189,7 @@ export function doRunProject(id) {
   renderCards()
   renderSidebar()
   updateStats()
-  import('./terminal.js').then(m => {
-    m.openTerminal(id)
-  })
+  openTerminal(id)
   window.electronAPI.runProject({ projectId: id, command: p.command, cwd: p.path })
 }
 
@@ -221,7 +238,7 @@ function inferPort(p) {
     }
   }
   // Final fallback: common dev commands default to 3000
-  if (/\b(npm|yarn|pnpm|bun)\s+(run\s+)?(dev|start|serve)\b/.test(p.command || '')) return '3000'
+  if (/\b(npm|yarn|pnpm|bun|npx)\s+(run\s+)?(dev|start|serve)\b/.test(p.command || '')) return '3000'
   return null
 }
 
@@ -232,30 +249,19 @@ export async function runProject(id) {
 
   const port = inferPort(p)
 
-  // 1. Check explicit port conflicts (configured or auto-detected from command)
   if (port) {
-    const conflicts = detectPortConflict(id, port)
-    if (conflicts && conflicts.length > 0) {
+    // 1. Check other running projects on the same port (explicit + inferred)
+    const conflicts = findConflictingProjects(id, port)
+    if (conflicts.length > 0) {
       pendingRunId = id
       openConflictModal(conflicts, port)
       return
     }
-  }
 
-  // 2. Check system-level — is the port already in use by ANY process?
-  if (port) {
+    // 2. Check system-level — is the port already in use by an external process?
     try {
       const usedPorts = await window.electronAPI.getUsedPorts()
       if (usedPorts.includes(parseInt(port))) {
-        const sysConflicts = projects.filter(x =>
-          x.id !== id && statuses[x.id] === 'running'
-        )
-        if (sysConflicts.length > 0) {
-          pendingRunId = id
-          openConflictModal(sysConflicts, port)
-          return
-        }
-        // Port in use but not by a managed project — offer to kill it
         pendingRunId = id
         openConflictModal([{ id: '__external__', name: `Unknown process on port ${port}`, icon: '🔌' }], port)
         return
@@ -274,6 +280,13 @@ export function stopProject(id) {
   renderCards()
   renderSidebar()
   updateStats()
+}
+
+export function restartProject(id) {
+  const p = projects.find(x => x.id === id)
+  if (!p) return
+  stopProject(id)
+  setTimeout(() => doRunProject(id), 300)
 }
 
 export function deleteProject(id) {
@@ -307,10 +320,6 @@ export function deleteProject(id) {
 
 function editProject(id) {
   import('./modal.js').then(m => m.openModal('edit', id))
-}
-
-function openTerminal(id) {
-  import('./terminal.js').then(m => m.openTerminal(id))
 }
 
 function esc(str) {

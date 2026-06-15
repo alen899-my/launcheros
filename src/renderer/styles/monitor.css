@@ -167,13 +167,120 @@
 
 
 
+/* ─── Pulse Graphs ──────────────────────────────────── */
+.pulse-graphs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.pulse-graph-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px;
+}
+.pulse-graph-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.pulse-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted-foreground);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.pulse-current {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--foreground);
+  font-family: var(--mono);
+}
+.pulse-canvas {
+  width: 100%;
+  height: 120px;
+  display: block;
+  border-radius: 4px;
+}
+
+/* Per-Process Pulse Cards */
+#proc-pulse-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.proc-pulse-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+}
+.proc-pulse-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+.proc-pulse-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--foreground);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.proc-pulse-name .pp-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--success);
+  flex-shrink: 0;
+}
+.proc-pulse-stats {
+  font-size: 11px;
+  color: var(--muted-foreground);
+  font-family: var(--mono);
+}
+.proc-pulse-canvas {
+  width: 100%;
+  height: 56px;
+  display: block;
+  border-radius: 3px;
+}
+
+/* Health Indicator for process pulse cards */
+.pp-dot.healthy { background: var(--success); box-shadow: 0 0 6px rgba(34, 197, 94, 0.4); }
+.pp-dot.degraded { background: var(--warning); box-shadow: 0 0 6px rgba(234, 179, 8, 0.4); }
+.pp-dot.down { background: var(--error); box-shadow: 0 0 6px rgba(239, 68, 68, 0.4); animation: pulse-health-alert 1.2s ease-in-out infinite; }
+
+@keyframes pulse-health-alert {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* Request latency peak indicator */
+.latency-peak {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--warning);
+  margin-left: 6px;
+}
+
 /* Responsive */
 @media (max-width: 860px) {
   .sys-stats { grid-template-columns: repeat(2, 1fr); }
+  .pulse-graphs { grid-template-columns: 1fr; }
+  #proc-pulse-container { grid-template-columns: 1fr; }
 }
 @media (max-width: 600px) {
   .sys-stats { grid-template-columns: 1fr; }
   .monitor-scroll { padding: 10px 12px; }
+  .pulse-graphs { grid-template-columns: 1fr; }
+  #proc-pulse-container { grid-template-columns: 1fr; }
   .process-table th:nth-child(3), .process-table td:nth-child(3),
   .process-table th:nth-child(4), .process-table td:nth-child(4) { display: none; }
 }

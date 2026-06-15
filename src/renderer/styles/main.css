@@ -42,6 +42,22 @@
   color: var(--foreground);
   box-shadow: var(--shadow-sm);
 }
+.stop-all-btn-topbar {
+  display: none;
+  padding: 5px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--error-bg);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  color: var(--error);
+  cursor: pointer;
+  transition: all 0.12s;
+  white-space: nowrap;
+}
+.stop-all-btn-topbar:hover { background: rgba(239, 68, 68, 0.2); }
+.stop-all-btn-topbar.visible { display: inline-block; }
+.stop-all-btn-topbar:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* ─── Content Area ───────────────────────────────── */
 #content-area {

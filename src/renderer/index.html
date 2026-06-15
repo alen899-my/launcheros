@@ -14,6 +14,8 @@
 <link rel="stylesheet" href="styles/modal.css" />
 <link rel="stylesheet" href="styles/toast.css" />
 <link rel="stylesheet" href="styles/monitor.css" />
+<link rel="stylesheet" href="styles/console.css" />
+<link rel="stylesheet" href="styles/shell.css" />
 <link rel="stylesheet" href="styles/responsive.css" />
 </head>
 <body>
@@ -65,7 +67,6 @@
           <div class="stat-lbl">Stopped</div>
         </div>
       </div>
-      <button id="stop-all-btn" class="stop-all-btn">■ Stop All</button>
     </div>
   </div>
 
@@ -81,12 +82,21 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 16l4-8 4 4 4-6"/></svg>
           Monitor
         </button>
+        <button class="view-btn" data-view="console">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+          Console
+        </button>
+        <button class="view-btn" data-view="shell">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17l6-6-6-6"/><path d="M12 19h8"/></svg>
+          Shell
+        </button>
       </div>
       <div class="filter-tabs">
         <button class="filter-tab active" data-filter="all">All</button>
         <button class="filter-tab" data-filter="running">Running</button>
         <button class="filter-tab" data-filter="stopped">Stopped</button>
       </div>
+      <button id="stop-all-btn" class="stop-all-btn-topbar">■ Stop All</button>
     </div>
 
     <div id="content-area">
@@ -136,6 +146,36 @@
             </div>
           </div>
 
+          <!-- System Pulse Graphs -->
+          <div class="monitor-section-title">Performance <span class="count" id="perf-count">live</span></div>
+          <div class="pulse-graphs">
+            <div class="pulse-graph-card">
+              <div class="pulse-graph-header"><span class="pulse-label">CPU Usage</span><span class="pulse-current" id="pulse-cpu-current">0%</span></div>
+              <canvas class="pulse-canvas" id="pulse-cpu-canvas" width="400" height="120"></canvas>
+            </div>
+            <div class="pulse-graph-card">
+              <div class="pulse-graph-header"><span class="pulse-label">Memory</span><span class="pulse-current" id="pulse-mem-current">0%</span></div>
+              <canvas class="pulse-canvas" id="pulse-mem-canvas" width="400" height="120"></canvas>
+            </div>
+          </div>
+
+          <!-- Request Activity Pulse Graphs -->
+          <div class="monitor-section-title" id="req-pulse-title" style="display:none">Request Activity <span class="count" id="req-pulse-count">0 req/s</span></div>
+          <div class="pulse-graphs" id="req-pulse-graphs" style="display:none">
+            <div class="pulse-graph-card">
+              <div class="pulse-graph-header"><span class="pulse-label">Request Latency</span><span class="pulse-current" id="pulse-latency-current">0ms</span></div>
+              <canvas class="pulse-canvas" id="pulse-latency-canvas" width="400" height="120"></canvas>
+            </div>
+            <div class="pulse-graph-card">
+              <div class="pulse-graph-header"><span class="pulse-label">Requests / s</span><span class="pulse-current" id="pulse-rate-current">0</span></div>
+              <canvas class="pulse-canvas" id="pulse-rate-canvas" width="400" height="120"></canvas>
+            </div>
+          </div>
+
+          <!-- Per-Process Pulse Graphs -->
+          <div class="monitor-section-title" id="proc-pulse-title" style="display:none">Process Pulse <span class="count" id="proc-pulse-count">0 running</span></div>
+          <div id="proc-pulse-container"></div>
+
           <div class="monitor-section-title">Processes <span class="count" id="proc-count">0</span></div>
           <div class="process-table-wrap">
             <table class="process-table">
@@ -146,7 +186,34 @@
             </table>
           </div>
 
+        </div>
+      </div>
 
+      <div id="console-view" class="view-panel">
+        <div class="console-scroll">
+          <div class="console-filter-bar" id="console-filter-bar"></div>
+          <div id="console-output-container"></div>
+          <div id="console-empty" class="console-empty">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+            <p>No console output</p>
+            <small>Run a project to see its console logs here</small>
+          </div>
+        </div>
+      </div>
+
+      <div id="shell-view" class="view-panel">
+        <div id="shell-bar">
+          <div id="shell-tabs"></div>
+          <button id="shell-add-btn" title="Open shell for a project">+</button>
+        </div>
+        <div id="shell-body">
+          <div id="shell-placeholder">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17l6-6-6-6"/><path d="M12 19h8"/></svg>
+            <span>Click + to open a shell for any project</span>
+          </div>
+          <div id="shell-picker-overlay" class="shell-picker-overlay" style="display:none">
+            <div class="shell-picker-popover" id="shell-picker-list"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -155,21 +222,18 @@
       <div id="term-bar">
         <div class="term-tab-row" id="term-tabs"></div>
         <div class="term-controls">
-          <button class="term-ctrl-btn" id="term-clear-btn">
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
-            Clear
+          <button class="term-ctrl-btn" id="term-clear-btn" title="Clear output">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M8 6V4h8v2"/></svg>
           </button>
-          <button class="term-ctrl-btn" id="term-toggle-btn">▲ Terminal</button>
+          <button class="term-ctrl-btn" id="term-toggle-btn" title="Toggle terminal">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+          </button>
         </div>
       </div>
       <div id="term-bodies">
         <div class="term-placeholder" id="term-placeholder">
-          <div class="ascii-art">
-╔══════════════════╗<br/>
-║   DevLaunch CLI  ║<br/>
-╚══════════════════╝
-          </div>
-          <span>Select a project and click ▶ Run to start</span>
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+          <span>Run a project to see its terminal output here</span>
         </div>
       </div>
     </div>

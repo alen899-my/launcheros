@@ -146,24 +146,6 @@
 .sidebar-item.running .si-tag { background: var(--success-bg); color: var(--success); }
 .sidebar-item.error .si-tag { background: var(--error-bg); color: var(--error); }
 
-.stop-all-btn {
-  display: none;
-  width: calc(100% - 20px);
-  margin: 0 10px 8px;
-  padding: 7px 10px;
-  border-radius: var(--radius-sm);
-  font-size: 12px;
-  font-weight: 600;
-  background: var(--error-bg);
-  border: 1px solid rgba(239, 68, 68, 0.25);
-  color: var(--error);
-  cursor: pointer;
-  transition: all 0.12s;
-  text-align: center;
-}
-.stop-all-btn:hover { background: rgba(239, 68, 68, 0.2); }
-.stop-all-btn.visible { display: block; }
-
 #sidebar-footer {
   padding: 10px;
   border-top: 1px solid var(--border);
