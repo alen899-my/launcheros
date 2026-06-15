@@ -6,6 +6,7 @@ console.log('typeof electron:', typeof electron);
 const { app, BrowserWindow, ipcMain, dialog, shell, screen } = electron;
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 const pty = require('node-pty');
 const os = require('os');
 require('dotenv').config({ path: path.join(__dirname, '../../.env') });
@@ -37,7 +38,7 @@ async function initStorage() {
       const { Pool } = require('pg');
       const p = new Pool({ connectionString: process.env.DATABASE_URL, connectionTimeoutMillis: 4000 });
       const client = await p.connect();
-      await client.query(`CREATE TABLE IF NOT EXISTS projects (id TEXT PRIMARY KEY, name TEXT NOT NULL, description TEXT DEFAULT '', path TEXT DEFAULT '', command TEXT DEFAULT '', tags JSONB DEFAULT '[]'::jsonb, icon TEXT DEFAULT '🚀', color TEXT DEFAULT '#4F6EF7', created_at BIGINT DEFAULT EXTRACT(EPOCH FROM NOW()) * 1000, port TEXT DEFAULT '', group_id TEXT DEFAULT '')`);
+      await client.query(`CREATE TABLE IF NOT EXISTS projects (id TEXT PRIMARY KEY, name TEXT NOT NULL, description TEXT DEFAULT '', path TEXT DEFAULT '', command TEXT DEFAULT '', tags JSONB DEFAULT '[]'::jsonb, icon TEXT DEFAULT '🚀', color TEXT DEFAULT '#4F6EF7', created_at BIGINT DEFAULT EXTRACT(EPOCH FROM NOW()) * 1000, port TEXT DEFAULT '', group_id TEXT DEFAULT '', user_id TEXT DEFAULT '')`);
       const migrates = [
         `ALTER TABLE projects ADD COLUMN IF NOT EXISTS description TEXT DEFAULT ''`,
         `ALTER TABLE projects ADD COLUMN IF NOT EXISTS path TEXT DEFAULT ''`,
@@ -47,10 +48,13 @@ async function initStorage() {
         `ALTER TABLE projects ADD COLUMN IF NOT EXISTS color TEXT DEFAULT '#4F6EF7'`,
         `ALTER TABLE projects ADD COLUMN IF NOT EXISTS created_at BIGINT DEFAULT EXTRACT(EPOCH FROM NOW()) * 1000`,
         `ALTER TABLE projects ADD COLUMN IF NOT EXISTS port TEXT DEFAULT ''`,
+        `ALTER TABLE projects ADD COLUMN IF NOT EXISTS user_id TEXT DEFAULT ''`,
       ];
       for (const sql of migrates) { try { await client.query(sql); } catch (e) {} }
-      await client.query(`CREATE TABLE IF NOT EXISTS project_groups (id TEXT PRIMARY KEY, name TEXT NOT NULL, description TEXT DEFAULT '', icon TEXT DEFAULT '📁', color TEXT DEFAULT '#3b82f6', created_at BIGINT DEFAULT EXTRACT(EPOCH FROM NOW()) * 1000)`);
+      await client.query(`CREATE TABLE IF NOT EXISTS project_groups (id TEXT PRIMARY KEY, name TEXT NOT NULL, description TEXT DEFAULT '', icon TEXT DEFAULT '📁', color TEXT DEFAULT '#3b82f6', created_at BIGINT DEFAULT EXTRACT(EPOCH FROM NOW()) * 1000, user_id TEXT DEFAULT '')`);
       try { await client.query(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS group_id TEXT DEFAULT ''`); } catch (e) {}
+      try { await client.query(`ALTER TABLE project_groups ADD COLUMN IF NOT EXISTS user_id TEXT DEFAULT ''`); } catch (e) {}
+      await client.query(`CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, username TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, salt TEXT NOT NULL, created_at BIGINT DEFAULT EXTRACT(EPOCH FROM NOW()) * 1000)`);
       await client.query(`CREATE TABLE IF NOT EXISTS process_logs (id SERIAL PRIMARY KEY, project_id TEXT NOT NULL, timestamp BIGINT NOT NULL DEFAULT EXTRACT(EPOCH FROM NOW()) * 1000, message TEXT NOT NULL)`);
       await client.query(`CREATE INDEX IF NOT EXISTS idx_logs_project_id ON process_logs(project_id)`);
       await client.query(`CREATE INDEX IF NOT EXISTS idx_logs_timestamp ON process_logs(timestamp DESC)`);
@@ -67,19 +71,22 @@ async function initStorage() {
 }
 
 // ─── Projects ──────────────────────────────────────────────────────────────────
-async function loadProjects() {
+async function loadProjects(userId) {
   if (usePg && pool) {
     try {
-      const result = await pool.query('SELECT * FROM projects ORDER BY created_at ASC');
+      const result = userId
+        ? await pool.query('SELECT * FROM projects WHERE user_id = $1 ORDER BY created_at ASC', [userId])
+        : await pool.query('SELECT * FROM projects ORDER BY created_at ASC');
       return result.rows.map(r => ({
         id: r.id, name: r.name, desc: r.description || '', path: r.path || '',
         command: r.command || '', port: r.port || null, groupId: r.group_id || null,
         tags: r.tags || [], icon: r.icon || '🚀', color: r.color || '#4F6EF7',
-        createdAt: Number(r.created_at),
+        createdAt: Number(r.created_at), userId: r.user_id || null,
       }));
     } catch (e) { console.error('Load projects error:', e); }
   }
-  return readJson('projects.json') || [];
+  const all = readJson('projects.json') || [];
+  return userId ? all.filter(p => p.userId === userId) : all;
 }
 
 async function saveProjects(projects) {
@@ -87,35 +94,49 @@ async function saveProjects(projects) {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
-      await client.query('DELETE FROM projects');
+      // Only delete and re-insert this user's projects
+      const userId = projects[0]?.userId || '';
+      if (userId) {
+        await client.query('DELETE FROM projects WHERE user_id = $1', [userId]);
+      } else {
+        await client.query('DELETE FROM projects');
+      }
       for (const p of projects) {
         await client.query(
-          `INSERT INTO projects (id, name, description, path, command, port, group_id, tags, icon, color, created_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+          `INSERT INTO projects (id, name, description, path, command, port, group_id, tags, icon, color, created_at, user_id)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
           [p.id, p.name, p.desc || '', p.path || '', p.command || '', p.port || '', p.groupId || '',
-           JSON.stringify(p.tags || []), p.icon || '🚀', p.color || '#4F6EF7', p.createdAt || Date.now()]
+           JSON.stringify(p.tags || []), p.icon || '🚀', p.color || '#4F6EF7', p.createdAt || Date.now(), p.userId || '']
         );
       }
       await client.query('COMMIT');
     } catch (e) { await client.query('ROLLBACK'); console.error('Save error:', e); }
     finally { client.release(); }
   } else {
-    writeJson('projects.json', projects);
+    // JSON: merge with existing data to preserve other users' projects
+    const existing = readJson('projects.json') || [];
+    const userId = projects[0]?.userId || '';
+    const filtered = userId ? existing.filter(p => p.userId !== userId) : [];
+    writeJson('projects.json', [...filtered, ...projects]);
   }
 }
 
 // ─── Groups ────────────────────────────────────────────────────────────────────
-async function loadGroups() {
+async function loadGroups(userId) {
   if (usePg && pool) {
     try {
-      const result = await pool.query('SELECT * FROM project_groups ORDER BY created_at ASC');
+      const result = userId
+        ? await pool.query('SELECT * FROM project_groups WHERE user_id = $1 ORDER BY created_at ASC', [userId])
+        : await pool.query('SELECT * FROM project_groups ORDER BY created_at ASC');
       return result.rows.map(r => ({
         id: r.id, name: r.name, desc: r.description || '',
         icon: r.icon || '📁', color: r.color || '#3b82f6', createdAt: Number(r.created_at),
+        userId: r.user_id || null,
       }));
     } catch (e) { console.error('Load groups error:', e); }
   }
-  return readJson('groups.json') || [];
+  const all = readJson('groups.json') || [];
+  return userId ? all.filter(g => g.userId === userId) : all;
 }
 
 async function saveGroups(groups) {
@@ -123,19 +144,27 @@ async function saveGroups(groups) {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
-      await client.query('DELETE FROM project_groups');
+      const userId = groups[0]?.userId || '';
+      if (userId) {
+        await client.query('DELETE FROM project_groups WHERE user_id = $1', [userId]);
+      } else {
+        await client.query('DELETE FROM project_groups');
+      }
       for (const g of groups) {
         await client.query(
-          `INSERT INTO project_groups (id, name, description, icon, color, created_at)
-           VALUES ($1, $2, $3, $4, $5, $6)`,
-          [g.id, g.name, g.desc || '', g.icon || '📁', g.color || '#3b82f6', g.createdAt || Date.now()]
+          `INSERT INTO project_groups (id, name, description, icon, color, created_at, user_id)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [g.id, g.name, g.desc || '', g.icon || '📁', g.color || '#3b82f6', g.createdAt || Date.now(), g.userId || '']
         );
       }
       await client.query('COMMIT');
     } catch (e) { await client.query('ROLLBACK'); console.error('Save groups error:', e); }
     finally { client.release(); }
   } else {
-    writeJson('groups.json', groups);
+    const existing = readJson('groups.json') || [];
+    const userId = groups[0]?.userId || '';
+    const filtered = userId ? existing.filter(g => g.userId !== userId) : [];
+    writeJson('groups.json', [...filtered, ...groups]);
   }
 }
 
@@ -211,7 +240,7 @@ ipcMain.on('window-maximize', () => {
 ipcMain.on('window-close', () => mainWindow?.close());
 
 // ─── IPC: Projects CRUD ───────────────────────────────────────────────────────
-ipcMain.handle('projects:load', () => loadProjects());
+ipcMain.handle('projects:load', (_e, userId) => loadProjects(userId));
 
 ipcMain.handle('projects:save', async (_e, projects) => {
   await saveProjects(projects);
@@ -219,7 +248,7 @@ ipcMain.handle('projects:save', async (_e, projects) => {
 });
 
 // ─── IPC: Groups CRUD ─────────────────────────────────────────────────────────
-ipcMain.handle('groups:load', () => loadGroups());
+ipcMain.handle('groups:load', (_e, userId) => loadGroups(userId));
 
 ipcMain.handle('groups:save', async (_e, groups) => {
   await saveGroups(groups);
@@ -458,6 +487,72 @@ ipcMain.on('shell:kill', (_e, projectId) => {
 ipcMain.on('shell:resize', (_e, { projectId, cols, rows }) => {
   const entry = shellProcesses.get(projectId);
   if (entry) try { entry.proc.resize(cols, rows); } catch (e) {}
+});
+
+// ─── Auth: User Storage ───────────────────────────────────────────────────────
+async function loadUsers() {
+  if (usePg && pool) {
+    try {
+      const result = await pool.query('SELECT * FROM users ORDER BY created_at ASC');
+      return result.rows.map(r => ({
+        id: r.id, username: r.username, passwordHash: r.password_hash,
+        salt: r.salt, createdAt: Number(r.created_at),
+      }));
+    } catch (e) { console.error('Load users error:', e); }
+  }
+  return readJson('users.json') || [];
+}
+
+async function saveUsers(users) {
+  if (usePg && pool) {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query('DELETE FROM users');
+      for (const u of users) {
+        await client.query(
+          `INSERT INTO users (id, username, password_hash, salt, created_at) VALUES ($1, $2, $3, $4, $5)`,
+          [u.id, u.username, u.passwordHash, u.salt, u.createdAt || Date.now()]
+        );
+      }
+      await client.query('COMMIT');
+    } catch (e) { await client.query('ROLLBACK'); console.error('Save users error:', e); }
+    finally { client.release(); }
+  } else {
+    writeJson('users.json', users);
+  }
+}
+
+function hashPassword(password, salt) {
+  return crypto.scryptSync(password, salt, 64).toString('hex');
+}
+
+// ─── IPC: Auth ─────────────────────────────────────────────────────────────────
+ipcMain.handle('auth:register', async (_e, username, password) => {
+  if (!username || username.length < 3) return { ok: false, error: 'Username must be at least 3 characters' };
+  if (!password || password.length < 6) return { ok: false, error: 'Password must be at least 6 characters' };
+  const users = await loadUsers();
+  if (users.find(u => u.username.toLowerCase() === username.toLowerCase())) {
+    return { ok: false, error: 'Username already taken' };
+  }
+  const salt = crypto.randomBytes(16).toString('hex');
+  const passwordHash = hashPassword(password, salt);
+  const user = {
+    id: crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2),
+    username, passwordHash, salt, createdAt: Date.now()
+  };
+  users.push(user);
+  await saveUsers(users);
+  return { ok: true, user: { id: user.id, username: user.username } };
+});
+
+ipcMain.handle('auth:login', async (_e, username, password) => {
+  const users = await loadUsers();
+  const user = users.find(u => u.username.toLowerCase() === username.toLowerCase());
+  if (!user) return { ok: false, error: 'Invalid username or password' };
+  const hash = hashPassword(password, user.salt);
+  if (hash !== user.passwordHash) return { ok: false, error: 'Invalid username or password' };
+  return { ok: true, user: { id: user.id, username: user.username } };
 });
 
 // ─── IPC: Monitoring ──────────────────────────────────────────────────────────

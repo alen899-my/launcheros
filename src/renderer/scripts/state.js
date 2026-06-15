@@ -18,6 +18,7 @@ export let searchQuery = ''
 export let editingId = null
 export let selectedEmoji = EMOJIS[0]
 export let selectedColor = COLORS[0]
+export let currentUser = null
 
 export function setProjects(val) { projects = val }
 export function setGroups(val) { groups = val }
@@ -29,3 +30,4 @@ export function setSearchQuery(val) { searchQuery = val }
 export function setEditingId(val) { editingId = val }
 export function setSelectedEmoji(val) { selectedEmoji = val }
 export function setSelectedColor(val) { selectedColor = val }
+export function setCurrentUser(val) { currentUser = val }

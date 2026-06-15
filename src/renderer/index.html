@@ -17,6 +17,7 @@
 <link rel="stylesheet" href="styles/console.css" />
 <link rel="stylesheet" href="styles/shell.css" />
 <link rel="stylesheet" href="styles/responsive.css" />
+<link rel="stylesheet" href="styles/auth.css" />
 </head>
 <body>
 
@@ -67,6 +68,7 @@
           <div class="stat-lbl">Stopped</div>
         </div>
       </div>
+      <button id="logout-btn" class="logout-btn" title="Logout">Logout</button>
     </div>
   </div>
 
@@ -350,6 +352,55 @@
 </div>
 
 <div id="toast-container"></div>
+
+<!-- Auth Overlay -->
+<div id="auth-overlay">
+  <div id="auth-container">
+    <div class="auth-logo">
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="2" y="4" width="20" height="14" rx="3" stroke="currentColor" stroke-width="1.5"/>
+        <path d="M8 20h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        <path d="M12 17v3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        <path d="M7 9l3 3-3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M13 15h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+      <span>DevLaunch</span>
+    </div>
+    <div class="auth-subtitle">Sign in to manage your projects</div>
+
+    <div id="auth-error"></div>
+
+    <form id="auth-login-form" class="auth-form">
+      <div class="auth-field">
+        <label>Username</label>
+        <input id="login-username" type="text" placeholder="Enter your username" autocomplete="username" />
+      </div>
+      <div class="auth-field">
+        <label>Password</label>
+        <input id="login-password" type="password" placeholder="Enter your password" autocomplete="current-password" />
+      </div>
+      <button class="auth-btn" type="submit">Login</button>
+      <div class="auth-toggle">Don't have an account? <a id="auth-to-signup">Create one</a></div>
+    </form>
+
+    <form id="auth-signup-form" class="auth-form hidden">
+      <div class="auth-field">
+        <label>Username</label>
+        <input id="signup-username" type="text" placeholder="Choose a username" autocomplete="off" />
+      </div>
+      <div class="auth-field">
+        <label>Password</label>
+        <input id="signup-password" type="password" placeholder="Choose a password (min 6 chars)" autocomplete="new-password" />
+      </div>
+      <div class="auth-field">
+        <label>Confirm Password</label>
+        <input id="signup-confirm" type="password" placeholder="Confirm your password" autocomplete="new-password" />
+      </div>
+      <button class="auth-btn" type="submit">Create Account</button>
+      <div class="auth-toggle">Already have an account? <a id="auth-to-login">Sign in</a></div>
+    </form>
+  </div>
+</div>
 
 <script type="module" src="scripts/app.js"></script>
 <script type="module">

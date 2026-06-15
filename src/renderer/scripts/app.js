@@ -1,21 +1,35 @@
-import { setProjects, setGroups, setStatuses, setTerminalBuffers, setSearchQuery, setSelectedFilter, statuses, terminalBuffers, activeTermTab, groups } from './state.js'
+import { setProjects, setGroups, setStatuses, setTerminalBuffers, setSearchQuery, setSelectedFilter, statuses, terminalBuffers, activeTermTab, groups, currentUser } from './state.js'
 import { renderSidebar, updateStats } from './sidebar.js'
 import { renderCards, stopProject, doRunProject } from './cards.js'
 import { appendTermOutput, appendConsoleOutput, clearConsoleBuffer, updateTermTabStatus, ensureTerminalElements, toggleTerminalPanel, switchTermTab, extractConsoleData } from './terminal.js'
 import { openModal, closeModal, saveProject, renderGroupSelect } from './modal.js'
-import { openGroupsModal, closeGroupsModal, addGroup, saveGroups } from './groups.js'
+import { openGroupsModal, closeGroupsModal, addGroup } from './groups.js'
 import { toast } from './toast.js'
 import { startMonitoring, stopMonitoring } from './monitor.js'
 import { startConsoleView, stopConsoleView } from './console.js'
 import { startShellView, stopShellView, handleShellData } from './shell.js'
 import { parseRequestData, tickMetrics, cleanupMetrics, clearProjectMetrics } from './requestMetrics.js'
+import { setupAuth, initAuthUI, logout } from './auth.js'
 
 let currentView = 'projects'
 
 async function init() {
+  const hasSession = setupAuth()
+  if (!hasSession) {
+    initAuthUI(onAuthSuccess)
+    return
+  }
+  await loadUserData(currentUser)
+  buildUI()
+  setupListeners()
+  setupIPCListeners()
+  startMetricsInterval()
+}
+
+async function loadUserData(user) {
   const [loaded, loadedGroups] = await Promise.all([
-    window.electronAPI.loadProjects(),
-    window.electronAPI.loadGroups()
+    window.electronAPI.loadProjects(user.id),
+    window.electronAPI.loadGroups(user.id)
   ])
   const st = {}
   const buf = {}
@@ -24,9 +38,18 @@ async function init() {
   setGroups(loadedGroups)
   setStatuses(st)
   setTerminalBuffers(buf)
-  buildUI()
-  setupListeners()
-  setupIPCListeners()
+}
+
+function onAuthSuccess(user) {
+  loadUserData(user).then(() => {
+    buildUI()
+    setupListeners()
+    setupIPCListeners()
+    startMetricsInterval()
+  })
+}
+
+function startMetricsInterval() {
   setInterval(() => {
     const runningIds = Object.entries(statuses).filter(([, s]) => s === 'running').map(([id]) => id)
     tickMetrics(runningIds)
@@ -137,7 +160,6 @@ function setupListeners() {
     renderGroupSelect()
     closeGroupsModal()
   })
-  // Press Enter to add group
   document.getElementById('groups-input').addEventListener('keydown', e => { if (e.key === 'Enter') { addGroup(); renderGroupSelect() } })
 
   document.getElementById('browse-btn').addEventListener('click', async () => {
@@ -187,6 +209,20 @@ function setupListeners() {
       const output = document.getElementById(`term-output-${activeTermTab}`)
       if (output) output.innerHTML = ''
     }
+  })
+
+  document.getElementById('logout-btn').addEventListener('click', () => {
+    logout(() => {
+      window.electronAPI.stopAll()
+      setProjects([])
+      setGroups([])
+      setStatuses({})
+      setTerminalBuffers({})
+      document.getElementById('project-list').innerHTML = ''
+      document.getElementById('table-body').innerHTML = ''
+      document.getElementById('term-tabs').innerHTML = ''
+      document.getElementById('term-bodies').innerHTML = '<div class="term-placeholder" id="term-placeholder"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg><span>Run a project to see its terminal output here</span></div>'
+    })
   })
 
   // Conflict modal

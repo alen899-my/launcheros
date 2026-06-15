@@ -1,4 +1,4 @@
-import { projects, groups, setGroups } from './state.js'
+import { projects, groups, setGroups, currentUser } from './state.js'
 import { renderSidebar } from './sidebar.js'
 import { renderCards } from './cards.js'
 import { toast } from './toast.js'
@@ -49,7 +49,7 @@ export function addGroup() {
   const name = input.value.trim()
   if (!name) { toast('Group name is required', 'error'); return }
   const id = `grp_${Date.now()}`
-  groups.push({ id, name, desc: '', icon: '📁', color: '#3b82f6', createdAt: Date.now() })
+  groups.push({ id, name, desc: '', icon: '📁', color: '#3b82f6', userId: currentUser?.id || null, createdAt: Date.now() })
   input.value = ''
   renderGroupList()
   renderSidebar()

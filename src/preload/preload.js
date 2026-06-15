@@ -6,15 +6,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
   maximize: () => ipcRenderer.send('window-maximize'),
   close: () => ipcRenderer.send('window-close'),
 
+  // Auth
+  register: (username, password) => ipcRenderer.invoke('auth:register', username, password),
+  login: (username, password) => ipcRenderer.invoke('auth:login', username, password),
+
   // Projects
-  loadProjects: () => ipcRenderer.invoke('projects:load'),
+  loadProjects: (userId) => ipcRenderer.invoke('projects:load', userId),
   saveProjects: (projects) => ipcRenderer.invoke('projects:save', projects),
   selectFolder: () => ipcRenderer.invoke('dialog:selectFolder'),
   openFolder: (p) => ipcRenderer.invoke('shell:openFolder', p),
   openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url),
 
   // Groups
-  loadGroups: () => ipcRenderer.invoke('groups:load'),
+  loadGroups: (userId) => ipcRenderer.invoke('groups:load', userId),
   saveGroups: (groups) => ipcRenderer.invoke('groups:save', groups),
 
   // Process control

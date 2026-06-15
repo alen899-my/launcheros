@@ -1,4 +1,4 @@
-import { projects, groups, statuses, terminalBuffers, editingId, setEditingId, selectedEmoji, selectedColor, setSelectedEmoji, setSelectedColor } from './state.js'
+import { projects, groups, statuses, terminalBuffers, editingId, setEditingId, selectedEmoji, selectedColor, setSelectedEmoji, setSelectedColor, currentUser } from './state.js'
 import { renderEmojiPicker, renderColorPicker } from './emoji-picker.js'
 import { renderSidebar, updateStats } from './sidebar.js'
 import { renderCards } from './cards.js'
@@ -97,6 +97,7 @@ export function saveProject() {
     tags,
     icon: selectedEmoji,
     color: selectedColor,
+    userId: currentUser?.id || null,
     createdAt: editingId ? (projects.find(p => p.id === editingId)?.createdAt || Date.now()) : Date.now(),
   }
 
