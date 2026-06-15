@@ -1,3 +1,8 @@
 node_modules/
 dist/
+dist-linux/
 .env
+*.log
+out/
+.DS_Store
+Thumbs.db
