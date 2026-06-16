@@ -4,7 +4,11 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>DevLaunch</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="styles/variables.css" />
+<link rel="stylesheet" href="libs/xterm.css" />
 <link rel="stylesheet" href="styles/base.css" />
 <link rel="stylesheet" href="styles/titlebar.css" />
 <link rel="stylesheet" href="styles/sidebar.css" />
@@ -18,6 +22,11 @@
 <link rel="stylesheet" href="styles/shell.css" />
 <link rel="stylesheet" href="styles/responsive.css" />
 <link rel="stylesheet" href="styles/auth.css" />
+<link rel="stylesheet" href="styles/git.css" />
+<link rel="stylesheet" href="styles/toolbox.css" />
+<link rel="stylesheet" href="styles/api-client.css" />
+<link rel="stylesheet" href="styles/db-explorer.css" />
+<link rel="stylesheet" href="styles/mock-server.css" />
 </head>
 <body>
 
@@ -50,8 +59,32 @@
       <div id="search-wrap">
         <input id="search-input" type="text" placeholder="Search projects..." />
       </div>
-      <button id="manage-groups-btn" title="Manage groups">📁 Groups</button>
-      <div id="project-list"></div>
+      <div id="sidebar-menu">
+        <div class="sidebar-item active" id="menu-all-projects">
+          <div class="si-icon" style="background:var(--accent-blue-glow)">🚀</div>
+          <span class="si-name">All Projects</span>
+        </div>
+        <div class="sidebar-item" id="menu-groups">
+          <div class="si-icon" style="background:rgba(139, 92, 246, 0.12)">📁</div>
+          <span class="si-name">Groups</span>
+        </div>
+        <div class="sidebar-item" id="menu-toolbox">
+          <div class="si-icon" style="background:rgba(234, 179, 8, 0.12)">🛠️</div>
+          <span class="si-name">Dev Toolbox</span>
+        </div>
+        <div class="sidebar-item" id="menu-api-client">
+          <div class="si-icon" style="background:rgba(59, 130, 246, 0.12)">📡</div>
+          <span class="si-name">API Client</span>
+        </div>
+        <div class="sidebar-item" id="menu-db-explorer">
+          <div class="si-icon" style="background:rgba(16, 185, 129, 0.12)">🗄️</div>
+          <span class="si-name">SQL Explorer</span>
+        </div>
+        <div class="sidebar-item" id="menu-mock-server">
+          <div class="si-icon" style="background:rgba(139, 92, 246, 0.12)">🔌</div>
+          <span class="si-name">Mock Server</span>
+        </div>
+      </div>
     </div>
     <div id="sidebar-footer">
       <div id="sidebar-stats">
@@ -92,6 +125,10 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17l6-6-6-6"/><path d="M12 19h8"/></svg>
           Shell
         </button>
+        <button class="view-btn" data-view="git">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+          Git
+        </button>
       </div>
       <div class="filter-tabs">
         <button class="filter-tab active" data-filter="all">All</button>
@@ -104,14 +141,16 @@
     <div id="content-area">
       <div id="cards-area" class="view-panel active">
         <div id="projects-table">
-          <div class="table-header">
-            <div class="th th-name">Name</div>
-            <div class="th th-status">Status</div>
-            <div class="th th-path">Directory</div>
-            <div class="th th-cmd">Command</div>
-            <div class="th th-actions">Actions</div>
+          <div id="projects-table-inner">
+            <div class="table-header">
+              <div class="th th-name">Name</div>
+              <div class="th th-status">Status</div>
+              <div class="th th-path">Directory</div>
+              <div class="th th-cmd">Command</div>
+              <div class="th th-actions">Actions</div>
+            </div>
+            <div class="table-body" id="table-body"></div>
           </div>
-          <div class="table-body" id="table-body"></div>
         </div>
         <div id="empty-state" style="display:none">
           <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
@@ -120,6 +159,34 @@
           </svg>
           <p>No projects yet</p>
           <small>Click + to add your first project</small>
+        </div>
+      </div>
+
+      <div id="groups-area" class="view-panel">
+        <div id="groups-top-bar" class="sub-view-header">
+          <div class="groups-header-left">
+            <h2>Groups Catalog</h2>
+            <p class="subtitle">Manage project groups, labels, and color codings</p>
+          </div>
+          <button id="group-create-btn" class="btn-create-group">+ Add New Group</button>
+        </div>
+        <div id="groups-table" style="display:none">
+          <div id="groups-table-inner">
+            <div class="table-header">
+              <div class="th th-group-icon">Icon</div>
+              <div class="th th-group-name">Group Name</div>
+              <div class="th th-group-desc">Description</div>
+              <div class="th th-group-actions">Actions</div>
+            </div>
+            <div class="table-body" id="groups-table-body"></div>
+          </div>
+        </div>
+        <div id="groups-empty-state" style="display:none">
+          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+          </svg>
+          <p>No groups created yet</p>
+          <small>Create your first group to categorize your projects</small>
         </div>
       </div>
 
@@ -188,6 +255,657 @@
             </table>
           </div>
 
+          <div class="monitor-section-title">System Port Finder &amp; Process Killer <span class="count" id="ports-count">scanning...</span></div>
+          <div class="ports-table-wrap">
+            <div class="ports-search-bar-wrap">
+              <input id="ports-search-input" type="text" placeholder="Search ports, process names, or PIDs..." class="ports-search-input" />
+              <button id="ports-refresh-btn" class="btn-secondary-sm">Refresh List</button>
+            </div>
+            <table class="ports-table">
+              <thead><tr>
+                <th>Port</th><th>Protocol</th><th>Process</th><th>PID</th><th>Status</th><th>Action</th>
+              </tr></thead>
+              <tbody id="ports-table-body"></tbody>
+            </table>
+          </div>
+
+        </div>
+      </div>
+
+      <div id="git-view" class="view-panel">
+        <div class="git-layout">
+          <!-- Sidebar: list of projects -->
+          <div class="git-sidebar">
+            <div class="git-sidebar-header">
+              <input type="text" id="git-project-search" placeholder="Filter projects..." class="git-search-input" />
+            </div>
+            <div id="git-projects-list" class="git-projects-list">
+              <!-- Rendered dynamically -->
+            </div>
+          </div>
+          <!-- Main workspace: commits list, remote URL, branch, pull/fetch -->
+          <div class="git-main">
+            <div id="git-project-details" class="git-project-details" style="display:none">
+              <div class="git-details-header">
+                <div class="gdh-left">
+                  <div class="gdh-title-wrap">
+                    <span id="git-active-proj-icon" class="git-proj-icon">🚀</span>
+                    <h2 id="git-active-proj-name">Project Name</h2>
+                  </div>
+                  <div class="git-badges-wrap">
+                    <span class="git-badge git-badge-branch" id="git-active-branch">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>
+                      <span id="git-active-branch-name">main</span>
+                    </span>
+                    <a href="#" target="_blank" class="git-badge git-badge-repo" id="git-active-repo-url" style="display:none">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+                      <span id="git-active-repo-name">owner/repo</span>
+                    </a>
+                  </div>
+                </div>
+                <div class="gdh-right">
+                  <button id="git-pull-btn" class="btn-secondary-sm">Pull</button>
+                  <button id="git-fetch-btn" class="btn-secondary-sm">Fetch</button>
+                  <button id="git-refresh-btn" class="btn-primary-sm">Sync GitHub</button>
+                </div>
+              </div>
+
+              <!-- GitHub Token Box -->
+              <div class="git-token-box">
+                <div class="gtb-label-wrap">
+                  <label for="git-pat-input">GitHub Token (PAT) for private repositories:</label>
+                  <a href="https://github.com/settings/tokens" target="_blank" class="gtb-help-link">Get Token ↗</a>
+                </div>
+                <div class="gtb-input-row">
+                  <input type="password" id="git-pat-input" placeholder="ghp_..." class="form-input mono" style="padding:5px 10px;font-size:12px;" />
+                  <button id="git-pat-save-btn" class="btn-secondary-sm">Save Token</button>
+                </div>
+              </div>
+
+              <!-- Timeline of commits -->
+              <div class="git-timeline-title">Recent Commit Tree</div>
+              <div id="git-commits-timeline" class="git-commits-timeline">
+                <!-- Rendered dynamically -->
+              </div>
+            </div>
+
+            <!-- Empty state for no project selected -->
+            <div id="git-no-project" class="git-empty-state">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+              <p>Select a project from the sidebar to view its Git history</p>
+            </div>
+
+            <!-- Non-git repository state -->
+            <div id="git-not-git-repo" class="git-empty-state" style="display:none">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <p>This project is not a Git repository</p>
+              <small id="git-not-git-path" style="font-family:var(--mono);color:var(--muted-foreground);margin-top:4px;word-break:break-all;"></small>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="toolbox-area" class="view-panel">
+        <div class="toolbox-layout">
+          <!-- Horizontal tab headers -->
+          <div class="toolbox-tabs-bar">
+            <button class="toolbox-tab-btn active" data-tab="tb-commands">⚡ Quick Commands</button>
+            <button class="toolbox-tab-btn" data-tab="tb-snippets">📋 Code Snippets</button>
+            <button class="toolbox-tab-btn" data-tab="tb-formatters">⚙️ Formatters &amp; Converters</button>
+          </div>
+
+          <!-- Tab Content Panels -->
+          <div class="toolbox-tab-content">
+            
+            <!-- Tab 1: Commands Grid -->
+            <div id="tb-commands" class="tb-panel active">
+              <div class="tb-panel-header">
+                <h3>System CLI Actions</h3>
+                <button id="tb-add-cmd-btn" class="btn-primary-sm">+ Add Custom Action</button>
+              </div>
+              <div id="tb-commands-grid" class="tb-commands-grid">
+                <!-- Commands render here -->
+              </div>
+              
+              <!-- Realtime Terminal console logs drawer -->
+              <div id="tb-console-drawer" class="tb-console-drawer" style="display:none">
+                <div class="tb-console-header">
+                  <span id="tb-console-title">Execution Output</span>
+                  <div class="tb-console-actions">
+                    <button id="tb-console-clear" class="btn-secondary-sm" style="padding:2px 8px;font-size:10px;">Clear</button>
+                    <button id="tb-console-close" class="btn-secondary-sm" style="padding:2px 8px;font-size:10px;color:var(--error);">✕ Close</button>
+                  </div>
+                </div>
+                <div id="tb-console-output" class="tb-console-output"></div>
+              </div>
+            </div>
+
+            <!-- Tab 2: Snippets Manager -->
+            <div id="tb-snippets" class="tb-panel">
+              <div class="tb-snippets-layout">
+                <div class="tb-snippets-left">
+                  <div class="tb-panel-header" style="margin-bottom:8px;">
+                    <input type="text" id="tb-snippets-search" placeholder="Search snippets..." class="git-search-input" />
+                    <button id="tb-add-snip-btn" class="btn-primary-sm" style="margin-left:8px;">+ Add</button>
+                  </div>
+                  <div id="tb-snippets-list" class="tb-snippets-list">
+                    <!-- Snippet items render here -->
+                  </div>
+                </div>
+                <div class="tb-snippets-right">
+                  <div id="tb-snippet-viewer" class="tb-snippet-viewer" style="display:none">
+                    <div class="tbsv-header">
+                      <h4 id="tbsv-title">Snippet Title</h4>
+                      <div class="tbsv-actions" style="display:flex;gap:8px;">
+                        <button id="tb-snippet-edit-btn" class="btn-secondary-sm">Edit</button>
+                        <button id="tb-snippet-delete-btn" class="btn-secondary-sm" style="color:var(--error);">Delete</button>
+                        <button id="tb-snippet-copy-btn" class="btn-primary-sm">Copy to Clipboard</button>
+                      </div>
+                    </div>
+                    <p id="tbsv-desc" class="tbsv-desc">Description details...</p>
+                    <pre><code id="tbsv-code" class="tbsv-code"></code></pre>
+                  </div>
+                  <div id="tb-snippet-empty" class="git-empty-state" style="padding:20px;">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                    <p style="font-size:12px;">Select a snippet to view and copy</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Tab 3: JSON / Base64 Utilities -->
+            <div id="tb-formatters" class="tb-panel">
+              <div class="tb-formatters-layout">
+                <!-- Utility selector list -->
+                <div class="tb-formatters-nav">
+                  <button class="tb-formatter-nav-btn active" data-fmt="fmt-json">JSON Prettifier</button>
+                  <button class="tb-formatter-nav-btn" data-fmt="fmt-base64">Base64 Converter</button>
+                  <button class="tb-formatter-nav-btn" data-fmt="fmt-jwt">JWT Decoder</button>
+                  <button class="tb-formatter-nav-btn" data-fmt="fmt-regex">Regex Tester</button>
+                </div>
+                
+                <!-- Utilities workspace -->
+                <div class="tb-formatters-workspace">
+                  <!-- JSON format pane -->
+                  <div id="fmt-json" class="tb-formatter-pane active">
+                    <div class="tb-pane-header">
+                      <h4>Prettify &amp; Validate JSON</h4>
+                      <div class="tb-pane-actions">
+                        <button id="tb-json-format" class="btn-primary-sm">Prettify JSON</button>
+                        <button id="tb-json-minify" class="btn-secondary-sm">Minify JSON</button>
+                        <button id="tb-json-clear" class="btn-secondary-sm">Clear</button>
+                      </div>
+                    </div>
+                    <div class="tb-json-split">
+                      <div class="tb-textarea-wrap">
+                        <textarea id="tb-json-input" placeholder="Paste raw or minified JSON here..." class="form-input mono"></textarea>
+                      </div>
+                    </div>
+                    <div id="tb-json-error" class="tb-error-banner" style="display:none">JSON Error Message</div>
+                  </div>
+
+                  <!-- Base64 pane -->
+                  <div id="fmt-base64" class="tb-formatter-pane">
+                    <div class="tb-pane-header">
+                      <h4>Base64 Encoder &amp; Decoder</h4>
+                      <div class="tb-pane-actions">
+                        <button id="tb-b64-encode" class="btn-primary-sm">Encode Text</button>
+                        <button id="tb-b64-decode" class="btn-primary-sm">Decode Base64</button>
+                        <button id="tb-b64-clear" class="btn-secondary-sm">Clear</button>
+                      </div>
+                    </div>
+                    <div class="tb-b64-split">
+                      <div class="tb-textarea-wrap" style="flex:1">
+                        <label class="form-label" style="font-size:10px;">Input text</label>
+                        <textarea id="tb-b64-input" placeholder="Type text or Base64 string..." class="form-input mono" style="height:150px;"></textarea>
+                      </div>
+                      <div class="tb-textarea-wrap" style="flex:1">
+                        <label class="form-label" style="font-size:10px;">Output result</label>
+                        <textarea id="tb-b64-output" placeholder="Result will show here..." readonly class="form-input mono" style="height:150px;background:var(--secondary);"></textarea>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- JWT Decoder Pane -->
+                  <div id="fmt-jwt" class="tb-formatter-pane">
+                    <div class="tb-pane-header">
+                      <h4>JWT Decoder &amp; Inspector</h4>
+                      <div class="tb-pane-actions">
+                        <button id="tb-jwt-clear" class="btn-secondary-sm">Clear</button>
+                      </div>
+                    </div>
+                    <div class="tb-jwt-split" style="display:flex; gap:16px; flex:1;">
+                      <div class="tb-textarea-wrap" style="flex: 1.2;">
+                        <label class="form-label" style="font-size:10px;">Encoded JWT Token</label>
+                        <textarea id="tb-jwt-input" placeholder="Paste eyJhbGciOi..." class="form-input mono" style="height:160px;"></textarea>
+                        <div id="tb-jwt-status-banner" class="tb-jwt-status-banner" style="display:none;margin-top:8px;"></div>
+                      </div>
+                      <div class="tb-jwt-decoded-wrap" style="flex: 1.8; display:flex; flex-direction:column; gap:12px;">
+                        <div class="tb-textarea-wrap" style="flex:unset;">
+                          <label class="form-label" style="font-size:10px;">Header</label>
+                          <textarea id="tb-jwt-header" readonly placeholder="Decoded header..." class="form-input mono" style="height:90px;background:var(--secondary);"></textarea>
+                        </div>
+                        <div class="tb-textarea-wrap" style="flex:1;">
+                          <label class="form-label" style="font-size:10px;">Payload</label>
+                          <textarea id="tb-jwt-payload" readonly placeholder="Decoded payload..." class="form-input mono" style="height:160px;background:var(--secondary);"></textarea>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Regex Tester Pane -->
+                  <div id="fmt-regex" class="tb-formatter-pane">
+                    <div class="tb-pane-header">
+                      <h4>Regex Tester</h4>
+                      <div class="tb-pane-actions">
+                        <button id="tb-regex-clear" class="btn-secondary-sm">Clear</button>
+                      </div>
+                    </div>
+                    <div class="tb-regex-layout" style="display:flex; flex-direction:column; gap:12px; height:100%; overflow-y:auto; padding-bottom:12px;">
+                      <div class="form-row" style="display:flex; gap:12px;">
+                        <div class="form-group" style="flex:1;">
+                          <label class="form-label">Regex Pattern</label>
+                          <input type="text" id="tb-regex-pattern" placeholder="e.g. \b[a-z]+\b" class="form-input mono" />
+                        </div>
+                        <div class="form-group" style="width:100px;">
+                          <label class="form-label">Flags</label>
+                          <input type="text" id="tb-regex-flags" placeholder="g, i, m" value="gi" class="form-input mono" />
+                        </div>
+                      </div>
+                      <div class="tb-regex-split" style="display:flex; gap:12px; flex:1;">
+                        <div class="tb-textarea-wrap" style="flex:1;">
+                          <label class="form-label" style="font-size:10px;">Test String</label>
+                          <textarea id="tb-regex-input" placeholder="Type text to match regex against..." class="form-input" style="height:140px;"></textarea>
+                        </div>
+                        <div class="tb-textarea-wrap" style="flex:1;">
+                          <label class="form-label" style="font-size:10px;">Match Results</label>
+                          <div id="tb-regex-output" class="form-input" style="height:140px; background:var(--secondary); overflow-y:auto; font-family:var(--sans); font-size:12px; line-height:1.5; padding:12px; white-space:pre-wrap; border:1px solid var(--border); border-radius:var(--radius);"></div>
+                        </div>
+                      </div>
+                      <div id="tb-regex-groups" class="tb-regex-groups-box" style="display:none; background:#050505; border:1px solid var(--border); border-radius:var(--radius); padding:10px; font-family:var(--mono); font-size:11px;"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <div id="api-client-view" class="view-panel">
+        <div class="api-client-layout">
+          <!-- Left: Request History -->
+          <div class="api-client-left">
+            <div class="tb-panel-header" style="margin-bottom:8px; flex-shrink: 0;">
+              <h3 style="font-size:12px;text-transform:uppercase;color:var(--muted-foreground)">History</h3>
+              <button id="api-clear-hist-btn" class="btn-secondary-sm" style="padding:2px 8px;font-size:10px;color:var(--error);">Clear All</button>
+            </div>
+            <div id="api-history-list" class="api-history-list">
+              <!-- History items render here -->
+            </div>
+          </div>
+          
+          <!-- Right: Request Builder and Response Viewer -->
+          <div class="api-client-right">
+            <!-- Request Builder -->
+            <div class="api-request-builder">
+              <div class="api-url-bar">
+                <select id="api-method" class="form-select api-method-select">
+                  <option value="GET">GET</option>
+                  <option value="POST">POST</option>
+                  <option value="PUT">PUT</option>
+                  <option value="DELETE">DELETE</option>
+                  <option value="PATCH">PATCH</option>
+                </select>
+                <input type="text" id="api-url" placeholder="http://localhost:3000/api/v1/resource" class="form-input api-url-input" />
+                <button id="api-send-btn" class="btn-primary" style="padding: 0 16px; height: 32px; font-size: 13px;">Send Request</button>
+              </div>
+
+              <!-- Request tabs -->
+              <div class="api-req-tabs-bar" style="display:flex; gap:8px; border-bottom:1px solid var(--border); padding-bottom:6px; margin-top:12px;">
+                <button class="api-req-tab-btn active" data-reqtab="req-headers" style="background:transparent; border:none; color:var(--muted-foreground); cursor:pointer; font-size:12px; padding:4px 8px; font-weight:500;">Headers</button>
+                <button class="api-req-tab-btn" data-reqtab="req-body" style="background:transparent; border:none; color:var(--muted-foreground); cursor:pointer; font-size:12px; padding:4px 8px; font-weight:500;">Body (JSON)</button>
+              </div>
+
+              <div class="api-req-tab-content" style="margin-top:10px;">
+                <!-- Headers tab -->
+                <div id="req-headers" class="api-req-tab-pane active" style="display:flex; flex-direction:column; gap:6px;">
+                  <div class="api-headers-header" style="display:grid; grid-template-columns: 1fr 1.5fr 36px; gap:8px; font-size:10px; color:var(--muted-foreground); font-weight:600; padding-bottom:4px; border-bottom:1px dashed var(--border);">
+                    <span>Header Name</span>
+                    <span>Value</span>
+                    <span></span>
+                  </div>
+                  <div id="api-headers-list" class="api-headers-list" style="display:flex; flex-direction:column; gap:6px; max-height:120px; overflow-y:auto; padding-bottom:4px;">
+                    <!-- Header rows -->
+                  </div>
+                  <button id="api-add-header-btn" class="btn-secondary-sm" style="width:fit-content;">+ Add Header</button>
+                </div>
+
+                <!-- Body tab -->
+                <div id="req-body" class="api-req-tab-pane" style="display:none;">
+                  <textarea id="api-body" placeholder='{&#10;  "key": "value"&#10;}' class="form-input mono" style="height:120px; width:100%; resize:none;"></textarea>
+                </div>
+              </div>
+            </div>
+
+            <!-- Response Viewer -->
+            <div class="api-response-viewer">
+              <div class="api-resp-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; border-top:1px solid var(--border); padding-top:16px;">
+                <h4 style="margin:0; font-size:13px; font-weight:600;">Response</h4>
+                <div id="api-resp-meta" class="api-resp-meta" style="display:none; align-items:center; gap:8px; font-size:11px;">
+                  <span id="api-resp-status" class="api-status-badge" style="background:var(--secondary); border:1px solid var(--border); padding:2px 8px; border-radius:12px; font-weight:600;">200 OK</span>
+                  <span id="api-resp-time" class="api-meta-item" style="color:var(--muted-foreground);">45ms</span>
+                  <span id="api-resp-size" class="api-meta-item" style="color:var(--muted-foreground);">1.2KB</span>
+                </div>
+              </div>
+              
+              <div class="api-resp-body-wrap" style="flex:1; display:flex; flex-direction:column; overflow:hidden;">
+                <div id="api-resp-empty" class="git-empty-state" style="padding:40px; display:flex;">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                  <p style="font-size:12px; margin-top:8px;">Send a request to see the response</p>
+                </div>
+                <div id="api-resp-container" style="display:none; height:100%; flex-direction:column; overflow:hidden;">
+                  <pre style="margin:0; flex:1; overflow:auto; background:#050505; border:1px solid var(--border); border-radius:var(--radius); padding:12px;"><code id="api-resp-text" class="api-resp-text" style="font-family:var(--mono); font-size:11px; color:#fafafa; display:block; white-space:pre-wrap; word-break:break-all;"></code></pre>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="db-explorer-view" class="view-panel">
+        <div class="db-explorer-layout">
+          <!-- Left: Connection state & Table tree list -->
+          <div class="db-explorer-left">
+            <!-- Disconnected State -->
+            <div id="db-setup-form" style="display:flex; flex-direction:column; gap:12px; height:100%;">
+              <div class="form-group">
+                <label class="form-label" style="font-size:10px;">PostgreSQL Connection URL *</label>
+                <textarea id="db-conn-string" placeholder="postgresql://username:password@localhost:5432/database" class="form-input mono" style="height:120px; font-size:11px; resize:none;"></textarea>
+              </div>
+              <button id="db-connect-btn" class="btn-primary" style="height:32px; font-size:12px;">Connect Database</button>
+            </div>
+
+            <!-- Connected State -->
+            <div id="db-connected-pane" style="display:none; flex-direction:column; gap:12px; height:100%; overflow:hidden;">
+              <div class="db-status-bar" style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); padding-bottom:8px; flex-shrink: 0;">
+                <span class="api-status-badge status-2xx" style="font-size:10px;">CONNECTED</span>
+                <button id="db-disconnect-btn" class="btn-secondary-sm" style="color:var(--error); padding:2px 8px;">Disconnect</button>
+              </div>
+              <div class="db-tables-list-wrap" style="flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:6px;">
+                <h4 style="font-size:10px; text-transform:uppercase; color:var(--muted-foreground); margin:0;">Schema Tables</h4>
+                <div id="db-tables-list" class="db-tables-list" style="display:flex; flex-direction:column; gap:4px;">
+                  <!-- Tables rendered dynamically -->
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: SQL Editor & Output Table Grid -->
+          <div class="db-explorer-right">
+            <!-- SQL Editor Box -->
+            <div class="db-sql-editor-box" style="background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:16px; display:flex; flex-direction:column; gap:12px; flex-shrink: 0;">
+              <div class="db-editor-header" style="display:flex; justify-content:space-between; align-items:center;">
+                <h4 style="margin:0; font-size:13px; font-weight:600;">SQL Query Runner</h4>
+                <div class="db-editor-actions" style="display:flex; gap:8px;">
+                  <button id="db-query-clear" class="btn-secondary-sm">Clear Editor</button>
+                  <button id="db-query-run" class="btn-primary" style="padding:0 16px; height:28px; font-size:12px;" disabled>Run Query</button>
+                </div>
+              </div>
+              <textarea id="db-sql-input" placeholder="SELECT * FROM projects LIMIT 10;" class="form-input mono" style="height:100px; resize:none; font-size:12px;" disabled></textarea>
+            </div>
+
+            <!-- SQL Results box -->
+            <div class="db-sql-results-box" style="flex:1; background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:16px; display:flex; flex-direction:column; overflow:hidden;">
+              <div class="db-results-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; border-bottom:1px solid var(--border); padding-bottom:10px; flex-shrink: 0;">
+                <h4 style="margin:0; font-size:13px; font-weight:600;">Query Results</h4>
+                <div id="db-results-meta" style="display:none; align-items:center; gap:8px; font-size:11px; color:var(--muted-foreground);">
+                  <span id="db-results-status" class="api-status-badge status-2xx" style="font-weight:600;">SELECT OK</span>
+                  <span id="db-results-count">0 rows</span>
+                  <span id="db-results-time">0ms</span>
+                </div>
+              </div>
+
+              <div class="db-results-body" style="flex:1; display:flex; flex-direction:column; overflow:hidden;">
+                <!-- Empty/Unconnected State -->
+                <div id="db-results-empty" class="git-empty-state" style="padding:40px; display:flex;">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="20" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+                  <p style="font-size:12px; margin-top:8px;">Execute a query to inspect connection results</p>
+                </div>
+                
+                <!-- Errors Banner -->
+                <div id="db-results-error" class="tb-error-banner" style="display:none; margin:0 0 10px 0;"></div>
+
+                <!-- Grid Table View -->
+                <div id="db-results-table-wrap" style="display:none; flex:1; overflow:auto; border:1px solid var(--border); border-radius:var(--radius-sm); background:#050505;">
+                  <table id="db-results-table" style="width:100%; border-collapse:collapse; font-size:11px; font-family:var(--sans); text-align:left;">
+                    <thead id="db-results-thead" style="background:#09090b; border-bottom:1px solid var(--border); position:sticky; top:0; z-index:1;">
+                      <!-- Headers generated dynamically -->
+                    </thead>
+                    <tbody id="db-results-tbody">
+                      <!-- Rows generated dynamically -->
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div id="mock-server-view" class="view-panel">
+        <div class="mock-server-layout">
+          <!-- Left Sidebar: Server Control & Endpoints -->
+          <div class="mock-server-left">
+            <!-- Server State Dashboard Card -->
+            <div class="mock-server-card server-control-card" style="background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:16px; display:flex; flex-direction:column; gap:12px; flex-shrink: 0;">
+              <div class="msc-status-line" style="display:flex; align-items:center; gap:8px;">
+                <span id="mock-status-indicator" class="mock-indicator-dot stopped" style="width:8px; height:8px; border-radius:50%; background:#71717a; display:inline-block; transition: background 0.3s ease;"></span>
+                <span id="mock-status-text" style="font-size:11px; font-weight:600; text-transform:uppercase; color:var(--muted-foreground);">Server Stopped</span>
+              </div>
+              <div class="msc-port-line" style="display:flex; align-items:center; justify-content:space-between; font-size:12px;">
+                <label for="mock-port-input">Server Port:</label>
+                <input type="number" id="mock-port-input" value="4000" min="1" max="65535" class="form-input mono" style="width: 80px; padding: 4px 8px; font-size: 12px; height: 26px;" />
+              </div>
+              <button id="mock-server-toggle-btn" class="btn-primary" style="width: 100%; height: 32px; font-size: 12px; margin-top: 8px;">Start Mock Server</button>
+            </div>
+
+            <!-- Endpoints Panel -->
+            <div class="mock-endpoints-panel" style="flex: 1; display: flex; flex-direction: column; gap: 10px; overflow: hidden; margin-top: 10px;">
+              <div class="mep-header" style="display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; padding-bottom:4px; border-bottom:1px solid var(--border);">
+                <h4 style="font-size: 10px; text-transform: uppercase; color: var(--muted-foreground); margin: 0; font-weight:600;">Mock Endpoints</h4>
+                <button id="mock-endpoint-add-btn" class="btn-primary-sm" style="padding: 2px 8px; font-size: 10px;">+ Add</button>
+              </div>
+              <div id="mock-endpoints-list" class="mock-endpoints-list" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px;">
+                <!-- Rendered dynamically -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Right panel: Split Editor & Inspector -->
+          <div class="mock-server-right" style="flex:1; display:flex; flex-direction:column; gap:20px; overflow:hidden;">
+            <!-- Endpoint Editor Form Box (hidden by default, shown when adding/editing) -->
+            <div id="mock-editor-box" class="mock-server-card" style="display: none; background:var(--card); border:1px solid var(--border); border-radius:var(--radius); flex-direction: column; gap: 12px; flex-shrink: 0; padding: 16px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 8px;">
+                <h4 id="mock-editor-title" style="margin: 0; font-size: 13px; font-weight: 600;">Add Mock Endpoint</h4>
+                <button id="mock-editor-close-btn" class="btn-secondary-sm" style="padding: 2px 8px; font-size: 11px;">✕ Cancel</button>
+              </div>
+              
+              <input type="hidden" id="mock-editor-id" />
+              
+              <div class="form-row" style="display: flex; gap: 12px;">
+                <div class="form-group" style="width: 120px;">
+                  <label class="form-label" style="font-size: 10px;">HTTP Method</label>
+                  <select id="mock-editor-method" class="form-select" style="height: 28px; font-size: 12px; width:100%;">
+                    <option value="GET">GET</option>
+                    <option value="POST">POST</option>
+                    <option value="PUT">PUT</option>
+                    <option value="DELETE">DELETE</option>
+                    <option value="PATCH">PATCH</option>
+                  </select>
+                </div>
+                <div class="form-group" style="flex: 1;">
+                  <label class="form-label" style="font-size: 10px;">Path (exact path starts with /)</label>
+                  <input type="text" id="mock-editor-path" placeholder="/api/users" class="form-input mono" style="height: 28px; font-size: 12px;" />
+                </div>
+              </div>
+
+              <div class="form-row" style="display: flex; gap: 12px;">
+                <div class="form-group" style="flex: 1;">
+                  <label class="form-label" style="font-size: 10px;">Response Status Code</label>
+                  <input type="number" id="mock-editor-status" value="200" placeholder="200" class="form-input mono" style="height: 28px; font-size: 12px;" />
+                </div>
+                <div class="form-group" style="flex: 1;">
+                  <label class="form-label" style="font-size: 10px;">Simulated Delay (ms)</label>
+                  <input type="number" id="mock-editor-delay" value="0" placeholder="0" class="form-input mono" style="height: 28px; font-size: 12px;" />
+                </div>
+              </div>
+
+              <!-- Headers Builder -->
+              <div class="form-group" style="display:flex; flex-direction:column; gap:4px;">
+                <label class="form-label" style="font-size: 10px; display: flex; justify-content: space-between; align-items: center; width:100%;">
+                  <span>Custom Response Headers</span>
+                  <button id="mock-editor-add-header" class="btn-secondary-sm" style="padding: 2px 8px; font-size: 10px;">+ Add Header</button>
+                </label>
+                <div id="mock-editor-headers-list" style="display: flex; flex-direction: column; gap: 6px; max-height: 90px; overflow-y: auto; padding: 6px; border: 1px solid var(--border); border-radius: var(--radius-sm); background:#050505;">
+                  <!-- Header fields render here -->
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" style="font-size: 10px;">Response Body</label>
+                <textarea id="mock-editor-body" placeholder='{"status": "success", "data": []}' class="form-input mono" style="height: 90px; font-size: 11px; resize: none;"></textarea>
+              </div>
+
+              <div style="display: flex; justify-content: flex-end; gap: 8px;">
+                <button id="mock-editor-save-btn" class="btn-primary" style="height: 30px; padding: 0 16px; font-size: 12px;">Save Endpoint</button>
+              </div>
+            </div>
+
+            <!-- Request Logs Inspector Box -->
+            <div class="mock-server-card" style="flex: 1; background:var(--card); border:1px solid var(--border); border-radius:var(--radius); display: flex; flex-direction: column; overflow: hidden; padding: 16px;">
+              <div class="db-results-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid var(--border); padding-bottom: 10px; flex-shrink: 0;">
+                <h4 style="margin: 0; font-size: 13px; font-weight: 600;">Incoming Requests Log</h4>
+                <button id="mock-logs-clear-btn" class="btn-secondary-sm" style="padding: 2px 8px; font-size: 10px; color: var(--error);">Clear Logs</button>
+              </div>
+
+              <div class="mock-logs-workspace" style="flex: 1; display: flex; gap: 16px; overflow: hidden;">
+                <!-- Logs List -->
+                <div class="mock-logs-list-wrap" style="width: 260px; display: flex; flex-direction: column; border-right: 1px solid var(--border); padding-right: 12px; overflow-y: auto; flex-shrink:0;">
+                  <div id="mock-logs-list" style="display: flex; flex-direction: column; gap: 6px;">
+                    <!-- Rendered dynamically -->
+                  </div>
+                  <div id="mock-logs-empty" class="git-empty-state" style="padding: 20px; display: flex; height: 100%; justify-content: center; align-items: center; flex-direction:column; text-align:center;">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                    <p style="font-size: 11px; margin-top:8px;">No incoming requests yet</p>
+                  </div>
+                </div>
+
+                <!-- Selected Log Details -->
+                <div class="mock-log-details-wrap" style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">
+                  <div id="mock-log-details-placeholder" class="git-empty-state" style="display: flex; justify-content: center; align-items: center; height: 100%; flex-direction:column; text-align:center;">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                    <p style="font-size: 11px; margin-top:8px;">Select a request from the timeline to inspect details</p>
+                  </div>
+                  <div id="mock-log-details-pane" style="display: none; flex-direction: column; gap: 12px; height: 100%; overflow: hidden;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px dashed var(--border); padding-bottom: 8px; flex-shrink: 0;">
+                      <div style="display:flex; align-items:center;">
+                        <span id="mld-badge" class="api-status-badge">GET</span>
+                        <span id="mld-path" class="mono" style="font-size: 11px; font-weight: 600; color: #fff; word-break: break-all; margin-left: 8px; flex: 1;">/api/users</span>
+                      </div>
+                      <span id="mld-duration" class="mono" style="font-size: 11px; color: var(--muted-foreground);">12ms</span>
+                    </div>
+
+                    <div style="display: flex; gap: 16px; font-size: 10px; color: var(--muted-foreground); flex-shrink: 0;">
+                      <div>Client IP: <span id="mld-ip" class="mono" style="color: #eee;">127.0.0.1</span></div>
+                      <div>Time: <span id="mld-time" class="mono" style="color: #eee;">12:00:00</span></div>
+                    </div>
+
+                    <!-- Tabs for headers, query params, body -->
+                    <div class="toolbox-tabs-bar" style="border-bottom: 1px solid var(--border); padding-bottom: 4px; display:flex; gap:8px; flex-shrink: 0;">
+                      <button class="mock-tab-btn active" data-tab="mld-headers-pane" style="background:transparent; border:none; color:var(--muted-foreground); cursor:pointer; font-size:11px; padding:4px 8px; font-weight:500;">Headers</button>
+                      <button class="mock-tab-btn" data-tab="mld-query-pane" style="background:transparent; border:none; color:var(--muted-foreground); cursor:pointer; font-size:11px; padding:4px 8px; font-weight:500;">Query Parameters</button>
+                      <button class="mock-tab-btn" data-tab="mld-body-pane" style="background:transparent; border:none; color:var(--muted-foreground); cursor:pointer; font-size:11px; padding:4px 8px; font-weight:500;">Request Body</button>
+                    </div>
+
+                    <div class="mock-tab-panes" style="flex: 1; overflow: hidden; display:flex; flex-direction:column;">
+                      <div id="mld-headers-pane" class="mock-tab-pane-content active" style="flex:1; overflow:auto; display:block;">
+                        <pre style="margin: 0; background: #050505; border: 1px solid var(--border); border-radius: var(--radius); padding: 10px; height:100%; overflow:auto;"><code id="mld-headers-code" style="font-family: var(--mono); font-size: 11px; color: #f4f4f5; display: block; white-space:pre-wrap; word-break:break-all;"></code></pre>
+                      </div>
+                      <div id="mld-query-pane" class="mock-tab-pane-content" style="flex:1; overflow:auto; display:none;">
+                        <pre style="margin: 0; background: #050505; border: 1px solid var(--border); border-radius: var(--radius); padding: 10px; height:100%; overflow:auto;"><code id="mld-query-code" style="font-family: var(--mono); font-size: 11px; color: #f4f4f5; display: block; white-space:pre-wrap; word-break:break-all;"></code></pre>
+                      </div>
+                      <div id="mld-body-pane" class="mock-tab-pane-content" style="flex:1; overflow:auto; display:none;">
+                        <pre style="margin: 0; background: #050505; border: 1px solid var(--border); border-radius: var(--radius); padding: 10px; height:100%; overflow:auto;"><code id="mld-body-code" style="font-family: var(--mono); font-size: 11px; color: #f4f4f5; display: block; white-space:pre-wrap; word-break:break-all;"></code></pre>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Add Command Action Dialog Modal Overlay -->
+      <div id="tb-cmd-modal-overlay" class="modal-overlay-custom" style="display:none">
+        <div class="modal-custom-content">
+          <div class="modal-header">
+            <h2 id="tb-cmd-modal-title">Add Command Action</h2>
+            <button class="modal-close" id="tb-cmd-modal-close">✕</button>
+          </div>
+          <div class="modal-body">
+            <input type="hidden" id="tb-cmd-form-id" />
+            <div class="form-group">
+              <label class="form-label">Action Name *</label>
+              <input type="text" id="tb-cmd-form-name" placeholder="Prune Docker Cache" class="form-input" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Description (optional)</label>
+              <input type="text" id="tb-cmd-form-desc" placeholder="Cleans up active cache..." class="form-input" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Command Line String *</label>
+              <input type="text" id="tb-cmd-form-command" placeholder="docker system prune -f" class="form-input mono" />
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn-secondary" id="tb-cmd-modal-cancel">Cancel</button>
+            <button class="btn-primary" id="tb-cmd-modal-save">Save Action</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Add Snippet Dialog Modal Overlay -->
+      <div id="tb-snip-modal-overlay" class="modal-overlay-custom" style="display:none">
+        <div class="modal-custom-content">
+          <div class="modal-header">
+            <h2 id="tb-snip-modal-title">Add Code Snippet</h2>
+            <button class="modal-close" id="tb-snip-modal-close">✕</button>
+          </div>
+          <div class="modal-body">
+            <input type="hidden" id="tb-snip-form-id" />
+            <div class="form-group">
+              <label class="form-label">Snippet Name *</label>
+              <input type="text" id="tb-snip-form-name" placeholder="Express JS Server Boilerplate" class="form-input" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Description (optional)</label>
+              <input type="text" id="tb-snip-form-desc" placeholder="Basic express listening configuration..." class="form-input" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Language (optional)</label>
+              <input type="text" id="tb-snip-form-lang" placeholder="javascript" class="form-input" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Code Content *</label>
+              <textarea id="tb-snip-form-code" placeholder="const express = require('express')..." class="form-input mono" style="height:140px;"></textarea>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn-secondary" id="tb-snip-modal-cancel">Cancel</button>
+            <button class="btn-primary" id="tb-snip-modal-save">Save Snippet</button>
+          </div>
         </div>
       </div>
 
@@ -250,6 +968,12 @@
     </div>
     <div class="modal-body">
       <input type="hidden" id="form-id" />
+      <div class="form-group">
+        <label class="form-label">Group</label>
+        <select class="form-select" id="form-group">
+          <option value="">— No group —</option>
+        </select>
+      </div>
       <div class="form-row">
         <div class="form-group" style="flex:1">
           <label class="form-label">Project Name *</label>
@@ -296,11 +1020,15 @@
           <input class="form-input" id="form-tags" type="text" placeholder="node, react, api" />
         </div>
       </div>
-      <div class="form-group">
-        <label class="form-label">Group</label>
-        <select class="form-select" id="form-group">
-          <option value="">— No group —</option>
-        </select>
+      <div class="form-row">
+        <div class="form-group" style="flex:1">
+          <label class="form-label">App URL (optional)</label>
+          <input class="form-input mono" id="form-app-url" type="text" placeholder="http://localhost:3000" />
+        </div>
+        <div class="form-group" style="flex:1">
+          <label class="form-label">Repo / Docs URL (optional)</label>
+          <input class="form-input mono" id="form-repo-url" type="text" placeholder="https://github.com/..." />
+        </div>
       </div>
       <div class="form-group">
         <label class="form-label">Color Accent</label>
@@ -314,22 +1042,36 @@
   </div>
 </div>
 
-<div id="groups-overlay">
-  <div id="groups-modal">
+<div id="group-modal-overlay">
+  <div id="group-modal">
     <div class="modal-header">
-      <h2>📁 Manage Groups</h2>
-      <button class="modal-close" id="groups-close-btn">✕</button>
+      <h2 id="group-modal-title">Add Group</h2>
+      <button class="modal-close" id="group-modal-close-btn">✕</button>
     </div>
     <div class="modal-body">
-      <div class="groups-input-row">
-        <input class="form-input" id="groups-input" type="text" placeholder="New group name..." />
-        <button class="btn-primary" id="groups-add-btn" style="flex-shrink:0;padding:7px 14px">Add</button>
+      <input type="hidden" id="group-form-id" />
+      <div class="form-row">
+        <div class="form-group" style="flex:1">
+          <label class="form-label">Group Name *</label>
+          <input class="form-input" id="group-form-name" type="text" placeholder="My Group" />
+        </div>
+        <div class="form-group" style="flex:0 0 auto; max-width:240px">
+          <label class="form-label">Icon</label>
+          <div class="emoji-picker-wrap" id="group-emoji-picker"></div>
+        </div>
       </div>
-      <div id="groups-list"></div>
+      <div class="form-group">
+        <label class="form-label">Description</label>
+        <input class="form-input" id="group-form-desc" type="text" placeholder="Description..." />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Color Accent</label>
+        <div class="color-row" id="group-color-picker"></div>
+      </div>
     </div>
     <div class="modal-footer">
-      <button class="btn-secondary" id="groups-cancel-btn">Cancel</button>
-      <button class="btn-primary" id="groups-save-btn">Save Groups</button>
+      <button class="btn-secondary" id="group-modal-cancel-btn">Cancel</button>
+      <button class="btn-primary" id="group-modal-save-btn">Save Group</button>
     </div>
   </div>
 </div>
@@ -347,6 +1089,29 @@
     <div class="modal-footer">
       <button class="btn-secondary" id="conflict-cancel-btn">Cancel</button>
       <button class="btn-primary" id="conflict-stop-btn">Stop All &amp; Run</button>
+    </div>
+  </div>
+</div>
+
+<div id="env-modal-overlay">
+  <div id="env-modal">
+    <div class="modal-header">
+      <h2 id="env-modal-title">.env Variable Manager</h2>
+      <button class="modal-close" id="env-modal-close-btn">✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="env-modal-desc">Manage variables stored in this project's local <code class="env-file-code">.env</code> file. They will load automatically when running the project.</p>
+      <div class="env-list-header">
+        <span class="elh-key">Variable Key</span>
+        <span class="elh-val">Value</span>
+        <span class="elh-act"></span>
+      </div>
+      <div id="env-variables-list"></div>
+      <button id="env-add-var-btn" class="btn-secondary-sm">+ Add Variable</button>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" id="env-modal-cancel-btn">Cancel</button>
+      <button class="btn-primary" id="env-modal-save-btn">Save Changes</button>
     </div>
   </div>
 </div>
@@ -402,6 +1167,8 @@
   </div>
 </div>
 
+<script src="libs/xterm.js"></script>
+<script src="libs/xterm-addon-fit.js"></script>
 <script type="module" src="scripts/app.js"></script>
 <script type="module">
   document.getElementById('minimize-btn').addEventListener('click', () => window.electronAPI.minimize())

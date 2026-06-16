@@ -81,6 +81,7 @@
   overflow-y: auto;
   display: flex;
   flex-direction: column;
+  padding-top: 16px;
 }
 
 #empty-state {

@@ -186,3 +186,79 @@
 }
 .stat-item .stat-num { font-size: 14px; font-weight: 700; color: var(--foreground); }
 .stat-item .stat-lbl { font-size: 9px; color: var(--muted-foreground); white-space: nowrap; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; }
+
+/* ─── Sidebar Groups Layout ────────────────────── */
+.section-header {
+  padding: 16px 12px 6px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.section-header h2 {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted-foreground);
+}
+#add-group-btn {
+  width: 24px; height: 24px;
+  background: var(--accent-blue-glow);
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  border-radius: var(--radius-sm);
+  color: var(--accent-blue);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px;
+  transition: all 0.15s;
+  cursor: pointer;
+}
+#add-group-btn:hover {
+  background: var(--accent-blue);
+  color: #fff;
+}
+#sidebar-groups-list {
+  padding: 2px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.group-item-sidebar {
+  position: relative;
+}
+.group-item-sidebar .group-item-actions {
+  display: flex;
+  gap: 4px;
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  opacity: 0;
+  transition: opacity 0.12s;
+  z-index: 10;
+}
+.group-item-sidebar:hover .group-item-actions {
+  opacity: 1;
+}
+.btn-group-action {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  background: var(--secondary);
+  border: 1px solid var(--border);
+  color: var(--muted-foreground);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.12s;
+  padding: 0;
+}
+.btn-group-action:hover {
+  color: var(--foreground);
+  border-color: var(--border-lit);
+}
+.btn-group-action.btn-group-del:hover {
+  background: var(--error-bg);
+  border-color: var(--error);
+  color: var(--error);
+}

@@ -31,7 +31,7 @@
   --radius-sm: 6px;
   --radius-full: 9999px;
   --mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'SF Mono', monospace;
-  --sans: 'Inter', 'Geist', 'SF Pro', system-ui, -apple-system, sans-serif;
+  --sans: 'Plus Jakarta Sans', 'Inter', 'Geist', system-ui, -apple-system, sans-serif;
   --sidebar-w: 260px;
   --term-h: 320px;
   --titlebar-h: 40px;

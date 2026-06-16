@@ -5,6 +5,13 @@ APP_NAME="DevLaunch"
 VERSION="1.0.0"
 OUT_DIR="$ROOT/dist"
 
+echo "==> Installing dependencies..."
+cd "$ROOT"
+npm install
+
+echo "==> Rebuilding native modules for Electron..."
+npx @electron/rebuild
+
 echo "==> Cleaning..."
 rm -rf "$ROOT/dist-linux"
 mkdir -p "$OUT_DIR"

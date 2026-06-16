@@ -1,18 +1,32 @@
-import { projects, groups, statuses, terminalBuffers, editingId, setEditingId, selectedEmoji, selectedColor, setSelectedEmoji, setSelectedColor, currentUser } from './state.js'
+import { 
+  projects, 
+  groups, 
+  statuses, 
+  terminalBuffers, 
+  editingId, 
+  setEditingId, 
+  selectedEmoji, 
+  selectedColor, 
+  setSelectedEmoji, 
+  setSelectedColor, 
+  currentUser,
+  notify 
+} from './state.js'
 import { renderEmojiPicker, renderColorPicker } from './emoji-picker.js'
-import { renderSidebar, updateStats } from './sidebar.js'
-import { renderCards } from './cards.js'
 import { toast } from './toast.js'
 
 export function openModal(mode, id) {
   setEditingId(mode === 'edit' ? id : null)
   const modal = document.getElementById('modal-overlay')
   const title = document.getElementById('modal-title')
+  if (!modal || !title) return
+
   modal.classList.add('open')
   title.textContent = mode === 'edit' ? 'Edit Project' : 'Add Project'
 
   const portField = document.getElementById('form-port')
   renderGroupSelect()
+  
   if (mode === 'edit' && id) {
     const p = projects.find(x => x.id === id)
     if (p) {
@@ -21,9 +35,11 @@ export function openModal(mode, id) {
       document.getElementById('form-desc').value = p.desc || ''
       document.getElementById('form-path').value = p.path || ''
       document.getElementById('form-cmd').value = p.command || ''
-      portField.value = p.port || ''
+      if (portField) portField.value = p.port || ''
       document.getElementById('form-group').value = p.groupId || ''
       document.getElementById('form-tags').value = (p.tags || []).join(', ')
+      document.getElementById('form-app-url').value = p.appUrl || ''
+      document.getElementById('form-repo-url').value = p.repoUrl || ''
       setSelectedEmoji(p.icon || '🚀')
       setSelectedColor(p.color || '#3b82f6')
     }
@@ -33,14 +49,18 @@ export function openModal(mode, id) {
     document.getElementById('form-desc').value = ''
     document.getElementById('form-path').value = ''
     document.getElementById('form-cmd').value = ''
-    portField.value = ''
+    if (portField) portField.value = ''
     document.getElementById('form-group').value = ''
     document.getElementById('form-tags').value = ''
+    document.getElementById('form-app-url').value = ''
+    document.getElementById('form-repo-url').value = ''
     setSelectedEmoji('🚀')
     setSelectedColor('#3b82f6')
   }
+  
   const cmdInput = document.getElementById('form-cmd')
   const onCmdInput = () => {
+    if (!cmdInput || !portField) return
     const val = cmdInput.value
     const existing = portField.value
     if (existing && mode !== 'edit') return
@@ -48,8 +68,12 @@ export function openModal(mode, id) {
     if (m) portField.value = m[1]
     else if (val === '') portField.value = ''
   }
-  cmdInput.removeEventListener('input', onCmdInput)
-  cmdInput.addEventListener('input', onCmdInput)
+  
+  if (cmdInput) {
+    cmdInput.removeEventListener('input', onCmdInput)
+    cmdInput.addEventListener('input', onCmdInput)
+  }
+  
   renderGroupSelect()
   renderEmojiPicker()
   renderColorPicker()
@@ -57,6 +81,7 @@ export function openModal(mode, id) {
 
 export function renderGroupSelect() {
   const sel = document.getElementById('form-group')
+  if (!sel) return
   const current = sel.value
   sel.innerHTML = '<option value="">— No group —</option>' +
     groups.map(g => `<option value="${g.id}">${g.icon || '📁'} ${esc(g.name)}</option>`).join('')
@@ -68,7 +93,8 @@ function esc(s) {
 }
 
 export function closeModal() {
-  document.getElementById('modal-overlay').classList.remove('open')
+  const modal = document.getElementById('modal-overlay')
+  if (modal) modal.classList.remove('open')
   setEditingId(null)
 }
 
@@ -95,6 +121,8 @@ export function saveProject() {
     port: portRaw || null,
     groupId,
     tags,
+    appUrl: document.getElementById('form-app-url').value.trim() || null,
+    repoUrl: document.getElementById('form-repo-url').value.trim() || null,
     icon: selectedEmoji,
     color: selectedColor,
     userId: currentUser?.id || null,
@@ -114,7 +142,5 @@ export function saveProject() {
 
   window.electronAPI.saveProjects(projects)
   closeModal()
-  renderSidebar()
-  renderCards()
-  updateStats()
+  notify()
 }

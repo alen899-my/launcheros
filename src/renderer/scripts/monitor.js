@@ -1,7 +1,7 @@
 import { projects, statuses } from './state.js'
 import { getMetrics, getAllMetrics, getProjectHealth } from './requestMetrics.js'
+import { toast } from './toast.js'
 
-// ─── History Buffers ──────────────────────────────────────
 const MAX_POINTS = 90
 const cpuHistory = []
 const memHistory = []
@@ -9,6 +9,8 @@ const procHist = new Map()
 
 let monInterval = null
 let canvasSizes = {}
+let lastActiveProcsJson = ''
+let portsInitialized = false
 
 const COLORS = {
   cpu: '#3b82f6',
@@ -18,8 +20,13 @@ const COLORS = {
 }
 
 export function startMonitoring() {
+  if (!portsInitialized) {
+    setupPortsListeners()
+    portsInitialized = true
+  }
   if (monInterval) return
   fetchAll()
+  fetchSystemPorts()
   monInterval = setInterval(fetchAll, 2000)
 }
 
@@ -72,42 +79,54 @@ function updateProcesses(procs) {
 }
 
 function getSystemStatElements(s) {
-  document.getElementById('sys-cpu-value').textContent = `${s.cpuPercent}%`
-  document.getElementById('sys-cpu-detail').textContent = `${s.cpuCount} cores`
+  const cpuValEl = document.getElementById('sys-cpu-value')
+  const cpuDetEl = document.getElementById('sys-cpu-detail')
   const cpuFill = document.getElementById('sys-cpu-fill')
-  cpuFill.style.width = `${s.cpuPercent}%`
-  cpuFill.className = 'sys-stat-bar-fill' + (s.cpuPercent > 80 ? ' critical' : s.cpuPercent > 50 ? ' high' : '')
+  if (cpuValEl) cpuValEl.textContent = `${s.cpuPercent}%`
+  if (cpuDetEl) cpuDetEl.textContent = `${s.cpuCount} cores`
+  if (cpuFill) {
+    cpuFill.style.width = `${s.cpuPercent}%`
+    cpuFill.className = 'sys-stat-bar-fill' + (s.cpuPercent > 80 ? ' critical' : s.cpuPercent > 50 ? ' high' : '')
+  }
 
   const memUsedGb = (s.memoryUsed / 1073741824).toFixed(1)
   const memTotalGb = (s.memoryTotal / 1073741824).toFixed(1)
-  document.getElementById('sys-mem-value').innerHTML = `${memUsedGb} <span class="unit">GB</span>`
-  document.getElementById('sys-mem-detail').textContent = `of ${memTotalGb} GB · ${s.memoryPercent}%`
+  const memValEl = document.getElementById('sys-mem-value')
+  const memDetEl = document.getElementById('sys-mem-detail')
   const memFill = document.getElementById('sys-mem-fill')
-  memFill.style.width = `${s.memoryPercent}%`
-  memFill.className = 'sys-stat-bar-fill' + (s.memoryPercent > 80 ? ' critical' : s.memoryPercent > 50 ? ' high' : '')
+  if (memValEl) memValEl.innerHTML = `${memUsedGb} <span class="unit">GB</span>`
+  if (memDetEl) memDetEl.textContent = `of ${memTotalGb} GB · ${s.memoryPercent}%`
+  if (memFill) {
+    memFill.style.width = `${s.memoryPercent}%`
+    memFill.className = 'sys-stat-bar-fill' + (s.memoryPercent > 80 ? ' critical' : s.memoryPercent > 50 ? ' high' : '')
+  }
 
   const uptime = formatUptime(s.uptime)
-  document.getElementById('sys-uptime-value').textContent = uptime
-  document.getElementById('sys-uptime-detail').textContent = 'since last boot'
+  const uptValEl = document.getElementById('sys-uptime-value')
+  const uptDetEl = document.getElementById('sys-uptime-detail')
+  if (uptValEl) uptValEl.textContent = uptime
+  if (uptDetEl) uptDetEl.textContent = 'since last boot'
 
   const running = Object.values(statuses).filter(st => st === 'running').length
-  document.getElementById('sys-procs-value').textContent = running
-  document.getElementById('sys-procs-detail').textContent = `${projects.length} total projects`
+  const prsValEl = document.getElementById('sys-procs-value')
+  const prsDetEl = document.getElementById('sys-procs-detail')
+  if (prsValEl) prsValEl.textContent = running
+  if (prsDetEl) prsDetEl.textContent = `${projects.length} total projects`
 }
 
-// ─── Canvas Helpers ──────────────────────────────────────
 function ensureCanvas(ctx, canvas) {
   const dpr = window.devicePixelRatio || 1
-  const cw = canvas.clientWidth
-  const ch = canvas.clientHeight
-  const key = canvas.id || Math.random()
+  const cw = canvas.clientWidth || 400
+  const ch = canvas.clientHeight || 120
+  const key = canvas.id || canvas.getAttribute('data-proc-id') || Math.random().toString()
   const cached = canvasSizes[key]
+  
   if (!cached || cached.w !== cw || cached.h !== ch) {
     canvas.width = cw * dpr
     canvas.height = ch * dpr
     canvasSizes[key] = { w: cw, h: ch }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
   }
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
   return { w: cw, h: ch }
 }
 
@@ -163,7 +182,6 @@ function plotGraph(ctx, w, h, history, color, labelMax) {
   ctx.stroke()
 }
 
-// ─── System Pulse Graphs ────────────────────────────────
 function renderSystemGraphs() {
   const cpuCanvas = document.getElementById('pulse-cpu-canvas')
   const memCanvas = document.getElementById('pulse-mem-canvas')
@@ -171,26 +189,30 @@ function renderSystemGraphs() {
 
   const cpuCtx = cpuCanvas.getContext('2d')
   const memCtx = memCanvas.getContext('2d')
+  if (!cpuCtx || !memCtx) return
+
   const cSize = ensureCanvas(cpuCtx, cpuCanvas)
   ensureCanvas(memCtx, memCanvas)
 
   const cpuVal = cpuHistory.length > 0 ? cpuHistory[cpuHistory.length - 1] : 0
   const memVal = memHistory.length > 0 ? memHistory[memHistory.length - 1] : 0
 
-  document.getElementById('pulse-cpu-current').textContent = `${cpuVal}%`
-  document.getElementById('pulse-mem-current').textContent = `${memVal}%`
+  const cpuCurrentEl = document.getElementById('pulse-cpu-current')
+  const memCurrentEl = document.getElementById('pulse-mem-current')
+  if (cpuCurrentEl) cpuCurrentEl.textContent = `${cpuVal}%`
+  if (memCurrentEl) memCurrentEl.textContent = `${memVal}%`
 
   plotGraph(cpuCtx, cSize.w, cSize.h, cpuHistory, COLORS.cpu, 100)
   plotGraph(memCtx, cSize.w, cSize.h, memHistory, COLORS.mem, 100)
 }
 
-// ─── Request Activity Pulse Graphs ──────────────────────
 function renderRequestGraphs() {
   const title = document.getElementById('req-pulse-title')
   const container = document.getElementById('req-pulse-graphs')
   const countEl = document.getElementById('req-pulse-count')
   const latencyCanvas = document.getElementById('pulse-latency-canvas')
   const rateCanvas = document.getElementById('pulse-rate-canvas')
+  if (!title || !container) return
 
   const runningIds = Object.entries(statuses).filter(([, s]) => s === 'running').map(([id]) => id)
   const allMetrics = getAllMetrics()
@@ -208,7 +230,6 @@ function renderRequestGraphs() {
   title.style.display = 'flex'
   container.style.display = 'grid'
 
-  // Aggregate metrics across all running projects
   let maxLen = 0
   for (const id of runningIds) {
     const m = allMetrics.get(id)
@@ -244,28 +265,35 @@ function renderRequestGraphs() {
 
   const avgLatency = latencyCount > 0 ? Math.round((totalLatency / latencyCount) * 10) / 10 : 0
 
-  countEl.textContent = `${Math.round(totalRate * 10) / 10} req/s`
-  document.getElementById('pulse-latency-current').textContent = `${avgLatency}ms`
-  document.getElementById('pulse-rate-current').textContent = `${Math.round(totalRate * 10) / 10}/s`
+  if (countEl) countEl.textContent = `${Math.round(totalRate * 10) / 10} req/s`
+  
+  const latCurrentEl = document.getElementById('pulse-latency-current')
+  const rateCurrentEl = document.getElementById('pulse-rate-current')
+  if (latCurrentEl) latCurrentEl.textContent = `${avgLatency}ms`
+  if (rateCurrentEl) rateCurrentEl.textContent = `${Math.round(totalRate * 10) / 10}/s`
 
   if (latencyCanvas) {
     const ctx = latencyCanvas.getContext('2d')
-    const cSize = ensureCanvas(ctx, latencyCanvas)
-    plotGraph(ctx, cSize.w, cSize.h, latencyHistory.length > 0 ? latencyHistory : [0], '#f59e0b', null)
+    if (ctx) {
+      const cSize = ensureCanvas(ctx, latencyCanvas)
+      plotGraph(ctx, cSize.w, cSize.h, latencyHistory.length > 0 ? latencyHistory : [0], '#f59e0b', null)
+    }
   }
 
   if (rateCanvas) {
     const ctx = rateCanvas.getContext('2d')
-    const cSize = ensureCanvas(ctx, rateCanvas)
-    plotGraph(ctx, cSize.w, cSize.h, rateHistory.length > 0 ? rateHistory : [0], '#8b5cf6', null)
+    if (ctx) {
+      const cSize = ensureCanvas(ctx, rateCanvas)
+      plotGraph(ctx, cSize.w, cSize.h, rateHistory.length > 0 ? rateHistory : [0], '#8b5cf6', null)
+    }
   }
 }
 
-// ─── Per-Process Pulse Graphs ────────────────────────────
 function renderProcessPulse(procs) {
   const container = document.getElementById('proc-pulse-container')
   const title = document.getElementById('proc-pulse-title')
   const count = document.getElementById('proc-pulse-count')
+  if (!container || !title) return
 
   const running = procs.filter(p => {
     const pObj = projects.find(pr => pr.id === p.projectId)
@@ -275,45 +303,68 @@ function renderProcessPulse(procs) {
   if (running.length === 0) {
     title.style.display = 'none'
     container.innerHTML = ''
+    lastActiveProcsJson = ''
     return
   }
 
   title.style.display = 'flex'
-  count.textContent = `${running.length} running`
+  if (count) count.textContent = `${running.length} running`
 
-  let html = ''
+  // ─── OPTIMIZATION: Only recreate HTML cards if process list changes! ──────
+  const activeProcsJson = JSON.stringify(running.map(p => p.projectId).sort())
+  if (activeProcsJson !== lastActiveProcsJson) {
+    lastActiveProcsJson = activeProcsJson
+    
+    let html = ''
+    for (const p of running) {
+      const pObj = projects.find(pr => pr.id === p.projectId)
+      const name = pObj ? esc(pObj.name) : p.projectId
+      html += `<div class="proc-pulse-card" id="proc-card-${p.projectId}">
+        <div class="proc-pulse-header">
+          <span class="proc-pulse-name"><span class="pp-dot healthy" id="pp-dot-${p.projectId}"></span>${name}</span>
+          <span class="proc-pulse-stats" id="proc-pulse-stats-${p.projectId}">CPU —% · Mem —%</span>
+        </div>
+        <canvas class="proc-pulse-canvas" data-proc-id="${p.projectId}" width="400" height="56"></canvas>
+      </div>`
+    }
+    container.innerHTML = html
+  }
+
+  // Update dynamic texts & stats inside the existing cards
   for (const p of running) {
-    const pObj = projects.find(pr => pr.id === p.projectId)
-    const name = pObj ? esc(pObj.name) : p.projectId
     const h = procHist.get(p.projectId)
-    const lastCpu = h && h.cpu.length > 0 ? h.cpu[h.cpu.length - 1] : 0
-    const lastMem = h && h.mem.length > 0 ? h.mem[h.mem.length - 1] : 0
+    if (!h) continue
+
+    const lastCpu = h.cpu.length > 0 ? h.cpu[h.cpu.length - 1] : 0
+    const lastMem = h.mem.length > 0 ? h.mem[h.mem.length - 1] : 0
     const health = getProjectHealth(p.projectId)
     const m = getMetrics(p.projectId)
     const lastLatency = m && m.latency && m.latency.length > 0 ? m.latency[m.latency.length - 1] : null
-    const latencyHtml = lastLatency !== null && lastLatency > 0
-      ? ` · <span class="${lastLatency > 500 ? 'latency-peak' : ''}">${lastLatency}ms</span>`
-      : ''
-    html += `<div class="proc-pulse-card">
-      <div class="proc-pulse-header">
-        <span class="proc-pulse-name"><span class="pp-dot ${health}"></span>${name}</span>
-        <span class="proc-pulse-stats">CPU ${lastCpu}% · Mem ${lastMem}%${latencyHtml}</span>
-      </div>
-      <canvas class="proc-pulse-canvas" data-proc-id="${p.projectId}" width="400" height="56"></canvas>
-    </div>`
-  }
-  container.innerHTML = html
+    
+    let latencyClass = ''
+    if (lastLatency !== null && lastLatency > 0) {
+      latencyClass = lastLatency > 500 ? 'latency-peak' : lastLatency > 200 ? 'latency-elevated' : 'latency-ok'
+    }
+    const latencyHtml = latencyClass ? ` · <span class="${latencyClass}">${lastLatency}ms</span>` : ''
 
-  // Draw per-process sparklines
-  for (const p of running) {
+    const statsEl = document.getElementById(`proc-pulse-stats-${p.projectId}`)
+    if (statsEl) {
+      statsEl.innerHTML = `CPU ${lastCpu}% · Mem ${lastMem}%${latencyHtml}`
+    }
+    
+    const dotEl = document.getElementById(`pp-dot-${p.projectId}`)
+    if (dotEl) {
+      dotEl.className = `pp-dot ${health}`
+    }
+
+    // Paint sparkline
     const canvas = container.querySelector(`canvas[data-proc-id="${p.projectId}"]`)
     if (!canvas) continue
-    const h = procHist.get(p.projectId)
-    if (!h) continue
     const ctx = canvas.getContext('2d')
+    if (!ctx) continue
+
     const { w, h: ch } = ensureCanvas(ctx, canvas)
     const maxCpu = Math.max(...h.cpu, 1)
-    // Draw CPU line in blue, memory line in green
     const cpuColor = '#3b82f6'
     const memColor = '#22c55e'
 
@@ -328,18 +379,19 @@ function renderProcessPulse(procs) {
       const stepX = w / (MAX_POINTS - 1)
       const startX = w - (h.cpu.length - 1) * stepX
 
-      // CPU line
+      // Draw CPU line
       ctx.beginPath()
       for (let i = 0; i < h.cpu.length; i++) {
         const x = startX + i * stepX
         const y = ch - (h.cpu[i] / effMax) * (ch - 6) - 3
-        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)
+        if (i === 0) ctx.moveTo(x, y)
+        else ctx.lineTo(x, y)
       }
       ctx.strokeStyle = cpuColor
       ctx.lineWidth = 1.2
       ctx.stroke()
 
-      // CPU fill
+      // Fill CPU background
       const lastCpuX = startX + (h.cpu.length - 1) * stepX
       ctx.lineTo(lastCpuX, ch)
       ctx.lineTo(startX, ch)
@@ -350,13 +402,14 @@ function renderProcessPulse(procs) {
       ctx.fillStyle = grad
       ctx.fill()
 
-      // Memory line
+      // Draw Memory line
       if (h.mem.length >= 2) {
         ctx.beginPath()
         for (let i = 0; i < h.mem.length; i++) {
           const x = startX + i * stepX
           const y = ch - (h.mem[i] / effMax) * (ch - 6) - 3
-          i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)
+          if (i === 0) ctx.moveTo(x, y)
+          else ctx.lineTo(x, y)
         }
         ctx.strokeStyle = memColor
         ctx.lineWidth = 1.2
@@ -366,9 +419,10 @@ function renderProcessPulse(procs) {
   }
 }
 
-// ─── Process Table ───────────────────────────────────────
 function renderProcessTable(procs) {
   const tbody = document.getElementById('proc-table-body')
+  if (!tbody) return
+  
   const running = projects.filter(p => statuses[p.id] === 'running')
   const other = projects.filter(p => statuses[p.id] !== 'running')
 
@@ -381,7 +435,8 @@ function renderProcessTable(procs) {
     html += processRow(p, statuses[p.id] || 'idle', null)
   }
 
-  document.getElementById('proc-count').textContent = projects.length
+  const countEl = document.getElementById('proc-count')
+  if (countEl) countEl.textContent = projects.length
 
   if (html) {
     tbody.innerHTML = html
@@ -390,7 +445,7 @@ function renderProcessTable(procs) {
         const id = btn.dataset.project
         import('./terminal.js').then(m => {
           const panel = document.getElementById('terminal-panel')
-          if (panel.classList.contains('collapsed')) {
+          if (panel && panel.classList.contains('collapsed')) {
             document.getElementById('term-toggle-btn')?.click()
           }
           m.openTerminal(id)
@@ -432,4 +487,93 @@ function formatUptime(seconds) {
 
 function esc(str) {
   return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+}
+
+// ─── System Port Finder & Process Killer ─────────────────────────────────────────
+let portsList = []
+let portsSearchQuery = ''
+
+export async function fetchSystemPorts() {
+  const countEl = document.getElementById('ports-count')
+  if (countEl) countEl.textContent = 'scanning...'
+
+  try {
+    portsList = await window.electronAPI.getListeningPorts()
+    renderPortsTable()
+  } catch (e) {
+    if (countEl) countEl.textContent = 'error'
+  }
+}
+
+function renderPortsTable() {
+  const tbody = document.getElementById('ports-table-body')
+  const countEl = document.getElementById('ports-count')
+  if (!tbody) return
+
+  const filtered = portsList.filter(p => {
+    const query = portsSearchQuery.toLowerCase()
+    return String(p.port).includes(query) ||
+           p.protocol.toLowerCase().includes(query) ||
+           p.processName.toLowerCase().includes(query) ||
+           String(p.pid).includes(query)
+  })
+
+  if (countEl) countEl.textContent = `${filtered.length} active`
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--muted-foreground);font-size:12px;padding:16px;">No ports found matching "${esc(portsSearchQuery)}"</td></tr>`
+    return
+  }
+
+  tbody.innerHTML = filtered.map(p => `
+    <tr>
+      <td><span class="port-num">${p.port}</span></td>
+      <td><span class="port-proto">${p.protocol}</span></td>
+      <td><span class="port-proc">${esc(p.processName)}</span></td>
+      <td><span class="port-pid">${p.pid}</span></td>
+      <td><span class="port-status">${p.status}</span></td>
+      <td><button class="btn-kill-proc" data-pid="${p.pid}">Kill Process</button></td>
+    </tr>
+  `).join('')
+
+  tbody.querySelectorAll('.btn-kill-proc').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const pid = parseInt(btn.dataset.pid, 10)
+      if (!pid) return
+      
+      const confirmKill = confirm(`Are you sure you want to terminate process ID ${pid}?`)
+      if (!confirmKill) return
+
+      btn.disabled = true
+      btn.textContent = 'Killing...'
+      const res = await window.electronAPI.killProcess(pid)
+      if (res.ok) {
+        portsList = portsList.filter(x => x.pid !== pid)
+        renderPortsTable()
+        toast(`Process ${pid} terminated`, 'success')
+      } else {
+        btn.disabled = false
+        btn.textContent = 'Kill Process'
+        toast(`Failed to kill process: ${res.error}`, 'error')
+      }
+    })
+  })
+}
+
+export function setupPortsListeners() {
+  const searchInput = document.getElementById('ports-search-input')
+  const refreshBtn = document.getElementById('ports-refresh-btn')
+
+  if (searchInput) {
+    searchInput.addEventListener('input', (e) => {
+      portsSearchQuery = e.target.value
+      renderPortsTable()
+    })
+  }
+
+  if (refreshBtn) {
+    refreshBtn.addEventListener('click', () => {
+      fetchSystemPorts()
+    })
+  }
 }

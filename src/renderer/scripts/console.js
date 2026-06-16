@@ -31,6 +31,13 @@ export function setConsoleFilter(id) {
   renderConsoleView()
 }
 
+export function doClearConsole(id) {
+  if (consoleBuffers[id]) {
+    consoleBuffers[id].length = 0
+    renderConsoleView()
+  }
+}
+
 function buildFilterBar() {
   const bar = document.getElementById('console-filter-bar')
   if (!bar) return
@@ -56,15 +63,12 @@ function buildFilterBar() {
   }
 
   bar.innerHTML = html
-
-  bar.querySelectorAll('.con-filter-btn').forEach(btn => {
-    btn.addEventListener('click', () => setConsoleFilter(btn.dataset.filter))
-  })
 }
 
 export function renderConsoleView() {
   const container = document.getElementById('console-output-container')
   const empty = document.getElementById('console-empty')
+  if (!container || !empty) return
 
   buildFilterBar()
 
@@ -111,16 +115,6 @@ export function renderConsoleView() {
   }
 
   container.innerHTML = html
-
-  container.querySelectorAll('.con-view-clear').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const id = btn.dataset.clear
-      if (consoleBuffers[id]) {
-        consoleBuffers[id].length = 0
-        renderConsoleView()
-      }
-    })
-  })
 }
 
 function esc(str) {

@@ -1,0 +1,249 @@
+/* Mock API Server & Webhook Inspector Styles */
+
+#mock-server-view {
+  display: none;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+#mock-server-view.active {
+  display: flex;
+}
+
+.mock-server-layout {
+  display: flex;
+  gap: 20px;
+  height: 100%;
+  overflow: hidden;
+  padding: 24px;
+}
+
+/* Left panel */
+.mock-server-left {
+  width: 280px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-right: 1px solid var(--border);
+  padding-right: 20px;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+/* Status Indicator classes */
+.mock-indicator-dot {
+  box-shadow: 0 0 8px transparent;
+  transition: all 0.3s ease;
+}
+.mock-indicator-dot.running {
+  background: var(--success) !important;
+  box-shadow: 0 0 10px var(--success);
+  animation: pulse-green 2s infinite;
+}
+.mock-indicator-dot.stopped {
+  background: #71717a !important;
+}
+
+@keyframes pulse-green {
+  0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+  70% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+/* Mock endpoints list item cards */
+.mock-endpoint-item {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.mock-endpoint-item:hover {
+  border-color: var(--border-lit);
+  background: var(--secondary);
+}
+
+.mock-endpoint-item.active {
+  border-color: var(--accent-blue-dim);
+  background: var(--secondary);
+  box-shadow: inset 0 0 0 1px var(--accent-blue-glow);
+}
+
+.mei-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.mei-path {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--foreground);
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.mei-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 10px;
+  color: var(--muted-foreground);
+}
+
+.mei-actions {
+  display: flex;
+  gap: 6px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.mock-endpoint-item:hover .mei-actions {
+  opacity: 1;
+}
+
+.mei-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 2px;
+  color: var(--muted-foreground);
+  display: flex;
+  align-items: center;
+  border-radius: 4px;
+}
+
+.mei-btn:hover {
+  color: var(--foreground);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.mei-btn.delete:hover {
+  color: var(--error);
+  background: rgba(239, 68, 68, 0.1);
+}
+
+/* Method badge highlights */
+.method-badge {
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+.method-badge.get {
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.25);
+}
+.method-badge.post {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
+.method-badge.put {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.25);
+}
+.method-badge.delete {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+}
+.method-badge.patch {
+  background: rgba(139, 92, 246, 0.15);
+  color: #a78bfa;
+  border: 1px solid rgba(139, 92, 246, 0.25);
+}
+
+/* Inspector Log row cards */
+.mock-log-item {
+  background: rgba(255, 255, 255, 0.01);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mock-log-item:hover {
+  background: var(--secondary);
+  border-color: var(--border-lit);
+}
+
+.mock-log-item.active {
+  background: var(--secondary);
+  border-color: var(--accent-blue-dim);
+  box-shadow: inset 0 0 0 1px var(--accent-blue-glow);
+}
+
+.mli-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.mli-path {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: #f4f4f5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  margin-left: 6px;
+}
+
+.mli-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 9px;
+  color: var(--muted-foreground);
+  font-family: var(--mono);
+}
+
+/* Tab button tweaks */
+.mock-tab-btn {
+  background: transparent;
+  border: none;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  font-size: 11px;
+  padding: 4px 8px;
+  font-weight: 500;
+  transition: color 0.15s ease;
+}
+
+.mock-tab-btn:hover {
+  color: var(--foreground);
+}
+
+.mock-tab-btn.active {
+  color: var(--accent-blue);
+  border-bottom: 2px solid var(--accent-blue);
+}
+
+.mock-tab-pane-content {
+  display: none;
+  height: 100%;
+}
+
+.mock-tab-pane-content.active {
+  display: block;
+}
